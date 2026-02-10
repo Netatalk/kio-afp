@@ -124,10 +124,11 @@ ParsedUrl AfpWorker::parseAfpUrl(const QUrl &url)
         }
     }
 
-    // Set the path field in afp_url (relative path within volume)
+    // Set the path field in afp_url (absolute path within volume)
     QByteArray pathBytes = pu.path.toUtf8();
     if (!pathBytes.isEmpty()) {
-        std::strncpy(pu.afpUrl.path, pathBytes.constData(),
+        QByteArray absPath = QByteArray("/") + pathBytes;
+        std::strncpy(pu.afpUrl.path, absPath.constData(),
                      sizeof(pu.afpUrl.path) - 1);
     }
 
@@ -463,8 +464,8 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
     if (!r.success())
         return r;
 
-    // Path for readdir: empty string for volume root, or the subpath
-    const char *dirPath = pu.hasPath ? pu.afpUrl.path : "";
+    // Path for readdir: "/" for volume root, or the absolute subpath
+    const char *dirPath = pu.hasPath ? pu.afpUrl.path : "/";
 
     constexpr int BATCH = 64;
     int start = 0;
