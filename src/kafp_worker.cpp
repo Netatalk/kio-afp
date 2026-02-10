@@ -156,17 +156,16 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
 
     // If we're already connected to a different server, disconnect first
     if (m_serverId && m_cachedServer != pu.server) {
-        qDebug() << "afp: disconnecting from" << m_cachedServer;
+        qWarning() << "kio_afp: disconnecting from" << m_cachedServer;
         afp_sl_disconnect(&m_serverId);
         m_serverId = nullptr;
         m_cachedServer.clear();
-        // Also invalidate volume
         m_volumeId = nullptr;
         m_cachedVolume.clear();
     }
 
     if (m_serverId) {
-        qDebug() << "afp: already connected to" << m_cachedServer;
+        qWarning() << "kio_afp: already connected to" << m_cachedServer;
         return KIO::WorkerResult::pass();
     }
 
@@ -175,16 +174,14 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
     int connectError = 0;
     unsigned int uamMask = default_uams_mask();
 
-    qDebug() << "afp: afp_sl_connect() server=" << pu.server
-             << "user=" << pu.afpUrl.username;
+    qWarning() << "kio_afp: connect server=" << pu.server
+               << "user=" << pu.afpUrl.username;
     int ret = afp_sl_connect(&pu.afpUrl, uamMask, &sid, loginmesg, &connectError);
-    qDebug() << "afp: afp_sl_connect() returned" << ret
-             << "sid=" << sid << "connectError=" << connectError;
+    qWarning() << "kio_afp: connect returned" << ret
+               << "sid=" << sid << "err=" << connectError;
 
     if (ret == AFP_SERVER_RESULT_ALREADY_CONNECTED) {
-        // Daemon already has this connection from a previous worker process.
-        // The sid returned by the daemon is still valid — use it.
-        qDebug() << "afp: already connected, sid=" << sid;
+        qWarning() << "kio_afp: already connected, sid=" << sid;
         m_serverId = sid;
         m_cachedServer = pu.server;
         return KIO::WorkerResult::pass();
@@ -197,7 +194,7 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
     m_cachedServer = pu.server;
 
     if (std::strlen(loginmesg) > 0)
-        qDebug() << "AFP login message:" << loginmesg;
+        qWarning() << "kio_afp: login message:" << loginmesg;
 
     return KIO::WorkerResult::pass();
 }
@@ -224,28 +221,27 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
 
     volumeid_t vid = nullptr;
 
-    qDebug() << "afp: afp_sl_attach() volume=" << pu.volume;
+    qWarning() << "kio_afp: attach volume=" << pu.volume;
     int ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
-    qDebug() << "afp: afp_sl_attach() returned" << ret << "vid=" << vid;
+    qWarning() << "kio_afp: attach returned" << ret << "vid=" << vid;
 
     if (ret == AFP_SERVER_RESULT_ALREADY_MOUNTED
         || ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
-        // Volume already known to daemon (stale state from a previous worker
-        // or session). Detach first, then re-attach to get a fresh volume ID.
-        qDebug() << "afp: volume already attached/mounted, detaching first";
+        // Volume already known to daemon from a previous worker/session.
+        // Detach, then re-attach to get a fresh volume ID.
+        qWarning() << "kio_afp: stale volume state, detaching first";
         volumeid_t stale = nullptr;
         afp_sl_detach(&stale, &pu.afpUrl);
 
         vid = nullptr;
         ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
-        qDebug() << "afp: afp_sl_attach() retry returned" << ret << "vid=" << vid;
+        qWarning() << "kio_afp: attach retry returned" << ret << "vid=" << vid;
     }
 
     if (ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
-        // Already attached — retrieve the volume ID
-        qDebug() << "afp: already attached, calling afp_sl_getvolid()";
+        qWarning() << "kio_afp: still attached, calling getvolid";
         ret = afp_sl_getvolid(&pu.afpUrl, &vid);
-        qDebug() << "afp: afp_sl_getvolid() returned" << ret << "vid=" << vid;
+        qWarning() << "kio_afp: getvolid returned" << ret << "vid=" << vid;
         if (ret != AFP_SERVER_RESULT_OKAY)
             return mapAfpError(ret, pu.volume);
     } else if (ret != AFP_SERVER_RESULT_OKAY) {
@@ -479,12 +475,12 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
         unsigned int numFiles = 0;
         int eod = 0;
 
-        qDebug() << "afp: afp_sl_readdir() path=" << dirPath
-                 << "start=" << start << "vid=" << m_volumeId;
+        qWarning() << "kio_afp: readdir path=" << dirPath
+                   << "start=" << start << "vid=" << m_volumeId;
         int ret = afp_sl_readdir(&m_volumeId, dirPath, &pu.afpUrl,
                                  start, BATCH, &numFiles, &fpb, &eod);
-        qDebug() << "afp: afp_sl_readdir() returned" << ret
-                 << "numFiles=" << numFiles << "eod=" << eod;
+        qWarning() << "kio_afp: readdir returned" << ret
+                   << "numFiles=" << numFiles << "eod=" << eod;
         if (ret != AFP_SERVER_RESULT_OKAY) {
             return mapAfpError(ret, pu.hasPath ? pu.path : pu.volume);
         }
