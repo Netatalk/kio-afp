@@ -63,6 +63,8 @@ private:
     serverid_t m_serverId = nullptr;
     QString m_cachedVolume;
     volumeid_t m_volumeId = nullptr;
+    QByteArray m_cachedUser;
+    QByteArray m_cachedPass;
 
     // --- URL parsing ---
     ParsedUrl parseAfpUrl(const QUrl &url);
@@ -168,12 +170,21 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         afp_sl_disconnect(&m_serverId);
         m_serverId = nullptr;
         m_cachedServer.clear();
+        m_cachedUser.clear();
+        m_cachedPass.clear();
         m_volumeId = nullptr;
         m_cachedVolume.clear();
     }
 
     if (m_serverId) {
         qWarning() << "kio_afp: already connected to" << m_cachedServer;
+        // Fill cached credentials into pu so subsequent AFP calls have them
+        if (!m_cachedUser.isEmpty())
+            std::strncpy(pu.afpUrl.username, m_cachedUser.constData(),
+                         sizeof(pu.afpUrl.username) - 1);
+        if (!m_cachedPass.isEmpty())
+            std::strncpy(pu.afpUrl.password, m_cachedPass.constData(),
+                         sizeof(pu.afpUrl.password) - 1);
         return KIO::WorkerResult::pass();
     }
 
@@ -244,6 +255,8 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
             || ret == AFP_SERVER_RESULT_ALREADY_CONNECTED) {
             m_serverId = sid;
             m_cachedServer = pu.server;
+            m_cachedUser = QByteArray(pu.afpUrl.username);
+            m_cachedPass = QByteArray(pu.afpUrl.password);
 
             if (std::strlen(loginmesg) > 0)
                 qWarning() << "kio_afp: login message:" << loginmesg;
@@ -316,9 +329,10 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
         qWarning() << "kio_afp: getvolid returned" << ret << "vid=" << vid;
 
         if (ret != AFP_SERVER_RESULT_OKAY) {
-            // Last resort: reset server connection and re-establish
-            qWarning() << "kio_afp: getvolid failed, resetting connection";
-            afp_sl_disconnect(&m_serverId);
+            // Clear local state and reconnect without calling
+            // afp_sl_disconnect — that tears down the shared daemon
+            // server connection and disrupts other KIO workers.
+            qWarning() << "kio_afp: getvolid failed, reconnecting";
             m_serverId = nullptr;
             m_cachedServer.clear();
 
@@ -328,7 +342,7 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
 
             vid = nullptr;
             ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
-            qWarning() << "kio_afp: re-attach after reset returned" << ret
+            qWarning() << "kio_afp: re-attach after reconnect returned" << ret
                        << "vid=" << vid;
             if (ret != AFP_SERVER_RESULT_OKAY)
                 return mapAfpError(ret, pu.volume);
@@ -391,7 +405,7 @@ KIO::UDSEntry AfpWorker::volumeSummaryToUDS(const struct afp_volume_summary &vol
                      QString::fromUtf8(vol.volume_name_printable));
     entry.fastInsert(KIO::UDSEntry::UDS_FILE_TYPE, S_IFDIR);
     entry.fastInsert(KIO::UDSEntry::UDS_ACCESS,
-                     S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+                     S_IRWXU | S_IRWXG | S_IRWXO);
     entry.fastInsert(KIO::UDSEntry::UDS_USER, QStringLiteral("root"));
     entry.fastInsert(KIO::UDSEntry::UDS_GROUP, QStringLiteral("root"));
     return entry;
