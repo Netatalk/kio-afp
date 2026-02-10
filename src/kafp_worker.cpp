@@ -228,11 +228,13 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
     int ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
     qDebug() << "afp: afp_sl_attach() returned" << ret << "vid=" << vid;
 
-    if (ret == AFP_SERVER_RESULT_ALREADY_MOUNTED) {
-        // Stale FUSE mount from a previous session — unmount and retry
-        QByteArray volName = pu.volume.toUtf8();
-        qDebug() << "afp: stale mount detected, unmounting" << pu.volume;
-        afp_sl_unmount(volName.constData());
+    if (ret == AFP_SERVER_RESULT_ALREADY_MOUNTED
+        || ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
+        // Volume already known to daemon (stale state from a previous worker
+        // or session). Detach first, then re-attach to get a fresh volume ID.
+        qDebug() << "afp: volume already attached/mounted, detaching first";
+        volumeid_t stale = nullptr;
+        afp_sl_detach(&stale, &pu.afpUrl);
 
         vid = nullptr;
         ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
