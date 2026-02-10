@@ -408,12 +408,19 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
         return KIO::WorkerResult::pass();
     }
 
-    // Volume root: afp://server/volume
+    // Volume root: afp://server/volume — stat "/" on the volume for real permissions
     if (!pu.hasPath) {
         auto r = ensureAttached(pu);
         if (!r.success())
             return r;
-        statEntry(serverOrVolumeEntry(pu.volume));
+
+        struct stat st{};
+        int ret = afp_sl_stat(&m_volumeId, "/", &pu.afpUrl, &st);
+        if (ret == AFP_SERVER_RESULT_OKAY) {
+            statEntry(statToUDS(st, pu.volume));
+        } else {
+            statEntry(serverOrVolumeEntry(pu.volume));
+        }
         return KIO::WorkerResult::pass();
     }
 
