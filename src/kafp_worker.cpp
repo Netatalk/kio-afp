@@ -229,18 +229,8 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
     if (ret == AFP_SERVER_RESULT_ALREADY_MOUNTED
         || ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
         // Volume already known to daemon from a previous worker/session.
-        // Detach, then re-attach to get a fresh volume ID.
-        qWarning() << "kio_afp: stale volume state, detaching first";
-        volumeid_t stale = nullptr;
-        afp_sl_detach(&stale, &pu.afpUrl);
-
-        vid = nullptr;
-        ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
-        qWarning() << "kio_afp: attach retry returned" << ret << "vid=" << vid;
-    }
-
-    if (ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
-        qWarning() << "kio_afp: still attached, calling getvolid";
+        // Retrieve the existing volume ID instead of re-attaching.
+        qWarning() << "kio_afp: volume already known, retrieving volume id";
         ret = afp_sl_getvolid(&pu.afpUrl, &vid);
         qWarning() << "kio_afp: getvolid returned" << ret << "vid=" << vid;
         if (ret != AFP_SERVER_RESULT_OKAY)
