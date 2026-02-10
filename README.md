@@ -1,17 +1,16 @@
 # kio-afp
 
 Frontend and KIO Worker for the AFP (Apple Filing Protocol) for KDE 6+,
-built for and depending on the afpfs-ng FUSE client.
+built using the afpfs-ng Stateless Client Library.
 
-This is a complete rewrite of *kioslave_afp* for KDE 3 by Alex deVries.
+Inspired by *kioslave_afp* for KDE 3 by Alex deVries, but was written from scratch and shares no code with the original.
 
 ## Build Requirements
 - Qt 6.5+ (Core, Widgets)
 - KDE Frameworks 6.20+ (KIO, I18n)
 - ECM (Extra CMake Modules)
 - CMake 3.20+
- - libafpclient (via pkg-config) - development headers required for direct AFP client integration
- - afpfs-ng (mount tools like `mount_afpfs`) for helper-based mounts
+- libafpclient and libafpsl (via pkg-config) - shared libraries and development headers required for direct AFP client integration
 
 ## Build & Install
 
