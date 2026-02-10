@@ -216,9 +216,12 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
     if (!r.success())
         return r;
 
-    // If attached to a different volume, detach first
+    // If switching to a different volume, clear our local cache.
+    // Don't call afp_sl_detach — the daemon handles concurrent volume
+    // attachments, and detaching with a mismatched URL corrupts state.
     if (m_volumeId && m_cachedVolume != pu.volume) {
-        afp_sl_detach(&m_volumeId, &pu.afpUrl);
+        qWarning() << "kio_afp: switching from volume" << m_cachedVolume
+                   << "to" << pu.volume;
         m_volumeId = nullptr;
         m_cachedVolume.clear();
     }
@@ -234,13 +237,30 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
 
     if (ret == AFP_SERVER_RESULT_ALREADY_MOUNTED
         || ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
-        // Volume already known to daemon from a previous worker/session.
-        // Retrieve the existing volume ID instead of re-attaching.
-        qWarning() << "kio_afp: volume already known, retrieving volume id";
+        // Volume attached but daemon didn't return a handle.
+        // Try to retrieve it, or reset the connection and re-attach.
+        qWarning() << "kio_afp: volume already attached, trying getvolid";
         ret = afp_sl_getvolid(&pu.afpUrl, &vid);
         qWarning() << "kio_afp: getvolid returned" << ret << "vid=" << vid;
-        if (ret != AFP_SERVER_RESULT_OKAY)
-            return mapAfpError(ret, pu.volume);
+
+        if (ret != AFP_SERVER_RESULT_OKAY) {
+            // Last resort: reset server connection and re-establish
+            qWarning() << "kio_afp: getvolid failed, resetting connection";
+            afp_sl_disconnect(&m_serverId);
+            m_serverId = nullptr;
+            m_cachedServer.clear();
+
+            auto rc = ensureConnected(pu);
+            if (!rc.success())
+                return rc;
+
+            vid = nullptr;
+            ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
+            qWarning() << "kio_afp: re-attach after reset returned" << ret
+                       << "vid=" << vid;
+            if (ret != AFP_SERVER_RESULT_OKAY)
+                return mapAfpError(ret, pu.volume);
+        }
     } else if (ret != AFP_SERVER_RESULT_OKAY) {
         return mapAfpError(ret, pu.volume);
     }
