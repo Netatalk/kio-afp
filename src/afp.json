@@ -3,7 +3,7 @@
     "Name": "Apple Filing Protocol",
     "Description": "KIO worker for AFP:// URLs",
     "Version": "0.1",
-    "License": "LGPL-2.1-or-later"
+    "License": "GPL-2.0-or-later"
   },
   "KDE-KIO-Protocols": {
     "afp": {
