@@ -53,6 +53,7 @@ public:
     KIO::WorkerResult del(const QUrl &url, bool isFile) override;
     KIO::WorkerResult rename(const QUrl &src, const QUrl &dest, KIO::JobFlags flags) override;
     KIO::WorkerResult chmod(const QUrl &url, int permissions) override;
+    KIO::WorkerResult fileSystemFreeSpace(const QUrl &url) override;
 
 private:
     // --- State ---
@@ -130,6 +131,11 @@ ParsedUrl AfpWorker::parseAfpUrl(const QUrl &url)
         QByteArray absPath = QByteArray("/") + pathBytes;
         std::strncpy(pu.afpUrl.path, absPath.constData(),
                      sizeof(pu.afpUrl.path) - 1);
+    }
+
+    // Normalize: volume root should always have path "/"
+    if (pu.hasVolume && !pu.hasPath) {
+        std::strncpy(pu.afpUrl.path, "/", sizeof(pu.afpUrl.path) - 1);
     }
 
     return pu;
@@ -229,18 +235,8 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
     if (ret == AFP_SERVER_RESULT_ALREADY_MOUNTED
         || ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
         // Volume already known to daemon from a previous worker/session.
-        // Detach, then re-attach to get a fresh volume ID.
-        qWarning() << "kio_afp: stale volume state, detaching first";
-        volumeid_t stale = nullptr;
-        afp_sl_detach(&stale, &pu.afpUrl);
-
-        vid = nullptr;
-        ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
-        qWarning() << "kio_afp: attach retry returned" << ret << "vid=" << vid;
-    }
-
-    if (ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
-        qWarning() << "kio_afp: still attached, calling getvolid";
+        // Retrieve the existing volume ID instead of re-attaching.
+        qWarning() << "kio_afp: volume already known, retrieving volume id";
         ret = afp_sl_getvolid(&pu.afpUrl, &vid);
         qWarning() << "kio_afp: getvolid returned" << ret << "vid=" << vid;
         if (ret != AFP_SERVER_RESULT_OKAY)
@@ -530,7 +526,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
 
 KIO::WorkerResult AfpWorker::get(const QUrl &url)
 {
-    qDebug() << "AfpWorker::get()" << url;
+    qWarning() << "kio_afp: get()" << url;
 
     ParsedUrl pu = parseAfpUrl(url);
     if (!pu.hasPath)
@@ -544,12 +540,15 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
     // Stat the file to get size
     struct stat st{};
     int ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
-    if (ret != AFP_SERVER_RESULT_OKAY)
+    if (ret != AFP_SERVER_RESULT_OKAY) {
+        qWarning() << "kio_afp: get stat failed ret=" << ret;
         return mapAfpError(ret, pu.path);
+    }
 
     if (S_ISDIR(st.st_mode))
         return KIO::WorkerResult::fail(KIO::ERR_IS_DIRECTORY, pu.path);
 
+    qWarning() << "kio_afp: get file size=" << st.st_size;
     totalSize(static_cast<KIO::filesize_t>(st.st_size));
 
     // Set MIME type
@@ -563,8 +562,11 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
     // Open
     unsigned int fileId = 0;
     ret = afp_sl_open(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &fileId, O_RDONLY);
-    if (ret != AFP_SERVER_RESULT_OKAY)
+    if (ret != AFP_SERVER_RESULT_OKAY) {
+        qWarning() << "kio_afp: get open failed ret=" << ret;
         return mapAfpError(ret, pu.path);
+    }
+    qWarning() << "kio_afp: get opened fileId=" << fileId;
 
     // Read loop
     unsigned long long offset = 0;
@@ -577,6 +579,8 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
         ret = afp_sl_read(&m_volumeId, fileId, 0 /* data fork */,
                           offset, READ_CHUNK, &received, &eofFlag, buf);
         if (ret != AFP_SERVER_RESULT_OKAY) {
+            qWarning() << "kio_afp: get read failed at offset" << offset
+                       << "ret=" << ret;
             afp_sl_close(&m_volumeId, fileId);
             return mapAfpError(ret, pu.path);
         }
@@ -591,13 +595,15 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
     }
 
     afp_sl_close(&m_volumeId, fileId);
+    qWarning() << "kio_afp: get complete, read" << offset << "bytes";
     data(QByteArray());  // signal end of data
     return KIO::WorkerResult::pass();
 }
 
 KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags flags)
 {
-    qDebug() << "AfpWorker::put()" << url;
+    qWarning() << "kio_afp: put()" << url << "permissions=" << permissions
+               << "flags=" << static_cast<int>(flags);
 
     ParsedUrl pu = parseAfpUrl(url);
     if (!pu.hasPath)
@@ -612,6 +618,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
     struct stat st{};
     int ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     bool exists = (ret == AFP_SERVER_RESULT_OKAY);
+    qWarning() << "kio_afp: put stat ret=" << ret << "exists=" << exists;
 
     if (exists && !(flags & KIO::Overwrite))
         return KIO::WorkerResult::fail(KIO::ERR_FILE_ALREADY_EXIST, pu.path);
@@ -620,20 +627,25 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
     if (!exists) {
         mode_t mode = (permissions == -1) ? 0644 : static_cast<mode_t>(permissions);
         ret = afp_sl_creat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, mode);
+        qWarning() << "kio_afp: put creat ret=" << ret;
         if (ret != AFP_SERVER_RESULT_OKAY)
             return mapAfpError(ret, pu.path);
     }
 
-    // Open for writing
+    // Truncate before open when overwriting (matches reference implementation)
+    if (exists && (flags & KIO::Overwrite)) {
+        ret = afp_sl_truncate(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, 0);
+        qWarning() << "kio_afp: put truncate ret=" << ret;
+        if (ret != AFP_SERVER_RESULT_OKAY)
+            return mapAfpError(ret, pu.path);
+    }
+
+    // Open for read/write (AFP servers may not handle write-only correctly)
     unsigned int fileId = 0;
-    ret = afp_sl_open(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &fileId, O_WRONLY);
+    ret = afp_sl_open(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &fileId, O_RDWR);
+    qWarning() << "kio_afp: put open ret=" << ret << "fileId=" << fileId;
     if (ret != AFP_SERVER_RESULT_OKAY)
         return mapAfpError(ret, pu.path);
-
-    // If overwriting, truncate
-    if (exists && (flags & KIO::Overwrite)) {
-        afp_sl_truncate(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, 0);
-    }
 
     // Write loop — read data from KIO
     unsigned long long offset = 0;
@@ -644,6 +656,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
         dataReq();
         readResult = readData(buf);
         if (readResult < 0) {
+            qWarning() << "kio_afp: put readData failed:" << readResult;
             afp_sl_close(&m_volumeId, fileId);
             return KIO::WorkerResult::fail(KIO::ERR_CANNOT_WRITE,
                        i18n("Error reading data from client"));
@@ -656,6 +669,8 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
                            offset, static_cast<unsigned int>(buf.size()),
                            &written, buf.constData());
         if (ret != AFP_SERVER_RESULT_OKAY) {
+            qWarning() << "kio_afp: put write failed at offset" << offset
+                       << "ret=" << ret;
             afp_sl_close(&m_volumeId, fileId);
             return mapAfpError(ret, pu.path);
         }
@@ -663,6 +678,16 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
     }
 
     afp_sl_close(&m_volumeId, fileId);
+    qWarning() << "kio_afp: put complete, wrote" << offset << "bytes";
+
+    // Set permissions after writing (non-fatal if it fails)
+    if (permissions != -1) {
+        ret = afp_sl_chmod(&m_volumeId, pu.afpUrl.path, &pu.afpUrl,
+                           static_cast<mode_t>(permissions));
+        if (ret != AFP_SERVER_RESULT_OKAY)
+            qWarning() << "kio_afp: put chmod failed (non-fatal) ret=" << ret;
+    }
+
     return KIO::WorkerResult::pass();
 }
 
@@ -765,6 +790,35 @@ KIO::WorkerResult AfpWorker::chmod(const QUrl &url, int permissions)
     if (ret != AFP_SERVER_RESULT_OKAY)
         return mapAfpError(ret, pu.path);
 
+    return KIO::WorkerResult::pass();
+}
+
+KIO::WorkerResult AfpWorker::fileSystemFreeSpace(const QUrl &url)
+{
+    qWarning() << "kio_afp: fileSystemFreeSpace()" << url;
+
+    ParsedUrl pu = parseAfpUrl(url);
+    auto r = ensureAttached(pu);
+    if (!r.success())
+        return r;
+
+    struct statvfs svfs{};
+    int ret = afp_sl_statfs(&m_volumeId, "/", &pu.afpUrl, &svfs);
+    if (ret != AFP_SERVER_RESULT_OKAY) {
+        qWarning() << "kio_afp: statfs failed ret=" << ret;
+        return mapAfpError(ret, pu.volume);
+    }
+
+    const KIO::filesize_t total =
+        static_cast<KIO::filesize_t>(svfs.f_blocks) * svfs.f_frsize;
+    const KIO::filesize_t available =
+        static_cast<KIO::filesize_t>(svfs.f_bavail) * svfs.f_frsize;
+
+    qWarning() << "kio_afp: fileSystemFreeSpace total=" << total
+               << "available=" << available;
+
+    setMetaData(QStringLiteral("total"), QString::number(total));
+    setMetaData(QStringLiteral("available"), QString::number(available));
     return KIO::WorkerResult::pass();
 }
 
