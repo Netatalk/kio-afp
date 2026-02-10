@@ -195,9 +195,11 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
     info.commentLabel = i18n("Server:");
     info.keepPassword = true;
 
-    // If no credentials from URL, check KWallet / session cache
-    bool hasUrlCreds = !info.username.isEmpty() && !info.password.isEmpty();
-    if (!hasUrlCreds && checkCachedAuthentication(info)) {
+    // Gather credentials: URL first, then KWallet / session cache, then prompt
+    bool haveCreds = !info.username.isEmpty() && !info.password.isEmpty();
+    bool dialogUsed = false;
+
+    if (!haveCreds && checkCachedAuthentication(info)) {
         qWarning() << "kio_afp: using cached credentials for user=" << info.username;
         QByteArray u = info.username.toUtf8();
         QByteArray p = info.password.toUtf8();
@@ -205,10 +207,26 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
                      sizeof(pu.afpUrl.username) - 1);
         std::strncpy(pu.afpUrl.password, p.constData(),
                      sizeof(pu.afpUrl.password) - 1);
+        haveCreds = !info.username.isEmpty() && !info.password.isEmpty();
+    }
+
+    // No credentials from URL or cache — prompt before connecting
+    if (!haveCreds) {
+        info.setModified(false);
+        int errCode = openPasswordDialog(info);
+        if (errCode != 0)
+            return KIO::WorkerResult::fail(KIO::ERR_USER_CANCELED, pu.server);
+
+        QByteArray u = info.username.toUtf8();
+        QByteArray p = info.password.toUtf8();
+        std::strncpy(pu.afpUrl.username, u.constData(),
+                     sizeof(pu.afpUrl.username) - 1);
+        std::strncpy(pu.afpUrl.password, p.constData(),
+                     sizeof(pu.afpUrl.password) - 1);
+        dialogUsed = true;
     }
 
     // Connect / retry loop
-    bool isFirstAttempt = true;
     for (;;) {
         serverid_t sid = nullptr;
         char loginmesg[AFP_LOGINMESG_LEN] = {};
@@ -230,11 +248,12 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
             if (std::strlen(loginmesg) > 0)
                 qWarning() << "kio_afp: login message:" << loginmesg;
 
-            // Cache credentials on success (persists to KWallet if user opted in)
-            info.username = QString::fromUtf8(pu.afpUrl.username);
-            info.password = QString::fromUtf8(pu.afpUrl.password);
-            if (!info.username.isEmpty())
+            // Only cache when user went through the password dialog
+            if (dialogUsed && info.keepPassword) {
+                info.username = QString::fromUtf8(pu.afpUrl.username);
+                info.password = QString::fromUtf8(pu.afpUrl.password);
                 cacheAuthentication(info);
+            }
 
             return KIO::WorkerResult::pass();
         }
@@ -242,25 +261,20 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         if (ret != AFP_SERVER_RESULT_NOAUTHENT)
             return mapAfpConnectError(ret);
 
-        // Auth failed — prompt the user for credentials
+        // Auth failed — re-prompt with error message
         info.setModified(false);
-        const QString errMsg = isFirstAttempt
-            ? QString()
-            : i18n("Authentication failed. Please try again.");
-
-        int errCode = openPasswordDialog(info, errMsg);
+        int errCode = openPasswordDialog(info,
+            i18n("Authentication failed. Please try again."));
         if (errCode != 0)
             return KIO::WorkerResult::fail(KIO::ERR_USER_CANCELED, pu.server);
 
-        // Fill new credentials into afp_url for the next attempt
         QByteArray u = info.username.toUtf8();
         QByteArray p = info.password.toUtf8();
         std::strncpy(pu.afpUrl.username, u.constData(),
                      sizeof(pu.afpUrl.username) - 1);
         std::strncpy(pu.afpUrl.password, p.constData(),
                      sizeof(pu.afpUrl.password) - 1);
-
-        isFirstAttempt = false;
+        dialogUsed = true;
     }
 }
 
