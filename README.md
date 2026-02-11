@@ -10,7 +10,7 @@ Inspired by *kioslave_afp* for KDE 3 by Alex deVries, but was written from scrat
 - KDE Frameworks 6.20+ (KIO, I18n)
 - ECM (Extra CMake Modules)
 - CMake 3.20+
-- libafpclient and libafpsl (via pkg-config) - shared libraries and development headers required for direct AFP client integration
+- afpfs-ng (libafpclient and libafpsl)
 
 ## Build & Install
 
@@ -47,35 +47,47 @@ QT_LOGGING_RULES="kio.*=true" dolphin afp://localhost
 
 1. List volumes and directory
 
+```shell
 kioclient ls afp://localhost/
 kioclient ls afp://localhost/afp1/
+```
 
 2. Download a file (get)
 
+```shell
 kioclient copy afp://localhost/afp1/testfile.txt .
 cat /tmp/afp_get_test.txt
+```
 
 3. Upload a new file (put - create)
 
+```shell
 echo "test content" > /tmp/afp_put_test.txt
 kioclient copy /tmp/afp_put_test.txt afp://localhost/afp1/afp_put_test.txt
+```
 
 4. Upload overwrite (put - overwrite with smaller file)
 
+```shell
 echo "short" > /tmp/afp_small.txt
 kioclient copy --overwrite /tmp/afp_small.txt afp://localhost/afp1/afp_put_test.txt
+```
 
 5. Verify overwrite correctness
 
+```shell
 kioclient copy afp://localhost/afp1/afp_put_test.txt /tmp/afp_verify.txt
 cat /tmp/afp_verify.txt  # Should be "short" only
+```
 
 6. Test mkdir, rename, delete
 
+```shell
 kioclient mkdir afp://localhost/afp1/testdir
 kioclient move afp://localhost/afp1/afp_put_test.txt afp://localhost/afp1/testdir/moved.txt
 kioclient remove afp://localhost/afp1/testdir/moved.txt
 kioclient remove afp://localhost/afp1/testdir
+```
 
 ## Development Notes
 
