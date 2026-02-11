@@ -53,10 +53,19 @@ if(XGETTEXT_EXECUTABLE)
 	string(REPLACE ";" "\n" I18N_SOURCES_TEXT "${I18N_SOURCES}")
 	file(WRITE ${CMAKE_BINARY_DIR}/i18n_sources.list "${I18N_SOURCES_TEXT}")
 
+	# Determine the command to generate rc.cpp (inline, since PRE_BUILD
+	# only works with Visual Studio generators and is silently ignored elsewhere)
+	if(EXTRACTRC_EXECUTABLE AND I18N_UI_FILES)
+		set(_RC_GEN_COMMAND ${EXTRACTRC_EXECUTABLE} ${I18N_UI_FILES} > ${CMAKE_BINARY_DIR}/rc.cpp)
+	else()
+		set(_RC_GEN_COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/rc.cpp)
+	endif()
+
 	add_custom_target(update-po
 		COMMENT "Regenerate PO/POT template with xgettext and extractrc"
 		COMMAND ${CMAKE_COMMAND} -E make_directory ${PO_DIR}
-		# Note: rc.cpp will be created by a PRE_BUILD command depending on extractrc availability
+		# Generate rc.cpp from UI/kcfg files (or create empty placeholder)
+		COMMAND ${_RC_GEN_COMMAND}
 		# Run xgettext over the source files list and the generated rc.cpp file
 		COMMAND ${XGETTEXT_EXECUTABLE} --from-code=UTF-8 --output=${POTFILE}
 			--keyword=i18n:1
@@ -72,16 +81,6 @@ if(XGETTEXT_EXECUTABLE)
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		VERBATIM
 	)
-	if(NOT EXTRACTRC_EXECUTABLE)
-		add_custom_command(TARGET update-po PRE_BUILD
-			COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/rc.cpp
-			COMMENT "extractrc not found: creating empty rc.cpp"
-		)
-	else()
-		add_custom_command(TARGET update-po PRE_BUILD
-			COMMAND ${EXTRACTRC_EXECUTABLE} ${I18N_UI_FILES} > ${CMAKE_BINARY_DIR}/rc.cpp
-		)
-	endif()
 else()
 	add_custom_target(update-po
 		COMMAND ${CMAKE_COMMAND} -E echo "xgettext not found; update-po target is a no-op"
