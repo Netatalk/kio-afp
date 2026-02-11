@@ -27,37 +27,65 @@ This installs:
 
 ## Runtime
 
-Once installed, Dolphin, Konqueror, and other KDE file managers will recognize `afp://` URLs. The worker currently returns "not implemented" for all operations and serves as a scaffold for full AFP support.
-
-You can also launch the *afp_connect* app directly which can either operate as
-a GUI for connecting to an AFP server, or used in CLI mode as a wrapper for *mount_afpfs*:
+Once installed, Dolphin, Konqueror, and other KDE file managers will recognize `afp://` URLs.
 
 ```shell
 afp_connect --server localhost --share afp1 --user myuser --pass mypass mount ~/mnt
 ```
 
-### Test
+## Test
+
+Open Dolphin and try connecting to an AFP server:
 
 ```shell
-# Open Dolphin and try connecting to an AFP server
 dolphin afp://localhost
 ```
 
 Check logs for debug output:
+
 ```shell
 QT_LOGGING_RULES="kio.*=true" dolphin afp://localhost
 ```
+
+### CLI Testing
+
+1. List volumes and directory
+
+kioclient ls afp://localhost/
+kioclient ls afp://localhost/afp1/
+
+2. Download a file (get)
+
+kioclient copy afp://localhost/afp1/testfile.txt .
+cat /tmp/afp_get_test.txt
+
+3. Upload a new file (put - create)
+
+echo "test content" > /tmp/afp_put_test.txt
+kioclient copy /tmp/afp_put_test.txt afp://localhost/afp1/afp_put_test.txt
+
+4. Upload overwrite (put - overwrite with smaller file)
+
+echo "short" > /tmp/afp_small.txt
+kioclient copy --overwrite /tmp/afp_small.txt afp://localhost/afp1/afp_put_test.txt
+
+5. Verify overwrite correctness
+
+kioclient copy afp://localhost/afp1/afp_put_test.txt /tmp/afp_verify.txt
+cat /tmp/afp_verify.txt  # Should be "short" only
+
+6. Test mkdir, rename, delete
+
+kioclient mkdir afp://localhost/afp1/testdir
+kioclient move afp://localhost/afp1/afp_put_test.txt afp://localhost/afp1/testdir/moved.txt
+kioclient remove afp://localhost/afp1/testdir/moved.txt
+kioclient remove afp://localhost/afp1/testdir
 
 ## Development Notes
 
 - **Entry point**: `kdemain()` function in [src/kafp_worker.cpp](src/kafp_worker.cpp) initializes the worker and enters dispatch loop.
 - **Worker class**: `AfpWorker` inherits from `KIO::WorkerBase` and implements core operations (`get()`, `stat()`, `listDir()`).
 - **UI**: [src/afploginwidget.h/cpp](src/afploginwidget.h) provides login dialog widgets (currently minimal stubs).
-
-⏳ **Next Steps:**
-- Implement actual AFP protocol operations using a modern AFP client library (if available)
-- Port connection/login logic from legacy `kafp.cpp`
-- Integrate with `libafpclient` or equivalent
 
 ### Internationalization (i18n)
 
@@ -70,4 +98,3 @@ QT_LOGGING_RULES="kio.*=true" dolphin afp://localhost
 ## License
 
 GNU General Public License v2
-
