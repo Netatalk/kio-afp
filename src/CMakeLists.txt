@@ -79,33 +79,3 @@ target_compile_definitions(kio_afp PRIVATE TRANSLATION_DOMAIN=\"kio_afp\")
 
 install(TARGETS kio_afp
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/plugins/kf6/kio)
-
-# AFP connect helper app (GUI + headless CLI)
-add_executable(afp_connect
-    afp_connect.cpp
-    afploginwidget.cpp
-)
-target_link_libraries(afp_connect PRIVATE
-    Qt6::Core
-    Qt6::Widgets
-    KF6::I18n
-)
-target_link_libraries(afp_connect PRIVATE ${LIBAFPCLIENT_LIBRARY_PATH})
-foreach(_dir IN LISTS LIBAFPCLIENT_LIBRARY_DIRS)
-    target_link_options(afp_connect PRIVATE "-Wl,-rpath,${_dir}")
-endforeach()
-target_include_directories(afp_connect PRIVATE ${LIBAFPCLIENT_INCLUDE_DIRS})
-target_compile_definitions(afp_connect PRIVATE TRANSLATION_DOMAIN=\"kio_afp\")
-install(TARGETS afp_connect
-    RUNTIME DESTINATION bin)
-
-include(CTest)
-if(BUILD_TESTING)
-    enable_testing()
-    add_test(NAME afp_connect_integration
-        COMMAND ${CMAKE_SOURCE_DIR}/tests/integration/test_afp_connect.sh)
-    set_tests_properties(afp_connect_integration PROPERTIES TIMEOUT 120)
-    add_test(NAME afp_get_stat_integration
-        COMMAND ${CMAKE_SOURCE_DIR}/tests/integration/test_afp_get_stat.sh)
-    set_tests_properties(afp_get_stat_integration PROPERTIES TIMEOUT 120)
-endif()
