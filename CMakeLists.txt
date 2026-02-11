@@ -24,7 +24,7 @@ qt_standard_project_setup()
 add_subdirectory(src)
 
 # Set translation domain for extraction/build
-add_definitions(-DTRANSLATION_DOMAIN=\"kio_afp\")
+add_definitions(-DTRANSLATION_DOMAIN=\"kio-afp\")
 
 # Install translations from po/ using KF6 i18n helpers
 ki18n_install(po)
@@ -48,7 +48,7 @@ if(XGETTEXT_EXECUTABLE)
 		"${CMAKE_SOURCE_DIR}/*.rc"
 	)
 	set(PO_DIR "${CMAKE_SOURCE_DIR}/po")
-	set(POTFILE "${PO_DIR}/kio_afp.pot")
+	set(POTFILE "${PO_DIR}/kio-afp.pot")
 
 	# Create a newline-separated list of source files at configure time
 	string(REPLACE ";" "\n" I18N_SOURCES_TEXT "${I18N_SOURCES}")
@@ -93,7 +93,7 @@ endif()
 #   LANG_CODE=fr cmake --build build --target init-po
 if(MSGINIT_EXECUTABLE)
 	add_custom_target(init-po
-		COMMAND /bin/sh -c "if [ -z \"$LANG_CODE\" ]; then echo 'Usage: LANG_CODE=xx cmake --build build --target init-po'; exit 1; fi; ${MSGINIT_EXECUTABLE} --input=${PO_DIR}/kio_afp.pot --locale=$LANG_CODE.UTF-8 --output-file=${PO_DIR}/$LANG_CODE.po --no-translator"
+		COMMAND /bin/sh -c "if [ -z \"$LANG_CODE\" ]; then echo 'Usage: LANG_CODE=xx cmake --build build --target init-po'; exit 1; fi; ${MSGINIT_EXECUTABLE} --input=${PO_DIR}/kio-afp.pot --locale=$LANG_CODE.UTF-8 --output-file=${PO_DIR}/$LANG_CODE.po --no-translator"
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		COMMENT "Initialize a new PO file (set LANG_CODE env var)"
 		VERBATIM

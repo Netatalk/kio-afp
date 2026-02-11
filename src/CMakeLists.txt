@@ -45,6 +45,7 @@ endif()
 ## discoverable by KProtocolInfoFactory (it reads plugin metadata from .so)
 
 add_executable(kio_afp_exec ${kio_afp_sources})
+set_target_properties(kio_afp_exec PROPERTIES OUTPUT_NAME "kio-afp")
 target_include_directories(kio_afp_exec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(kio_afp_exec PRIVATE ${LIBAFPCLIENT_INCLUDE_DIRS} ${LIBAFPSL_INCLUDE_DIRS})
 target_link_libraries(kio_afp_exec PRIVATE
