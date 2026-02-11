@@ -78,7 +78,7 @@ if(XGETTEXT_EXECUTABLE)
 		COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/rc.cpp
 		# Reinitialize headerless PO files with msginit, then merge all PO files
 		COMMAND ${CMAKE_COMMAND} -E echo "Updating existing PO files..."
-		COMMAND /bin/sh -c "for p in ${PO_DIR}/*.po; do if [ -f \"$p\" ]; then lang=$(basename \"$p\" .po); if ! grep -q '^msgid \"\"' \"$p\"; then if command -v ${MSGINIT_EXECUTABLE} >/dev/null 2>&1; then echo \"Initializing $lang.po with gettext headers...\"; ${MSGINIT_EXECUTABLE} --input=${POTFILE} --locale=$lang.UTF-8 --output-file=\"$p\" --no-translator 2>/dev/null; else echo \"msginit not found, cannot add headers to $lang.po\"; fi; elif command -v ${MSGMERGE_EXECUTABLE} >/dev/null 2>&1; then ${MSGMERGE_EXECUTABLE} --update --backup=none \"$p\" ${POTFILE}; fi; fi; done"
+		COMMAND /bin/sh -c "for p in ${PO_DIR}/*/kio-afp.po; do if [ -f \"$p\" ]; then lang=$(basename $(dirname \"$p\")); if ! grep -q '^msgid \"\"' \"$p\"; then if command -v ${MSGINIT_EXECUTABLE} >/dev/null 2>&1; then echo \"Initializing $lang with gettext headers...\"; ${MSGINIT_EXECUTABLE} --input=${POTFILE} --locale=$lang.UTF-8 --output-file=\"$p\" --no-translator 2>/dev/null; else echo \"msginit not found, cannot add headers to $lang\"; fi; elif command -v ${MSGMERGE_EXECUTABLE} >/dev/null 2>&1; then ${MSGMERGE_EXECUTABLE} --update --backup=none \"$p\" ${POTFILE}; fi; fi; done"
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		VERBATIM
 	)
@@ -93,7 +93,7 @@ endif()
 #   LANG_CODE=fr cmake --build build --target init-po
 if(MSGINIT_EXECUTABLE)
 	add_custom_target(init-po
-		COMMAND /bin/sh -c "if [ -z \"$LANG_CODE\" ]; then echo 'Usage: LANG_CODE=xx cmake --build build --target init-po'; exit 1; fi; ${MSGINIT_EXECUTABLE} --input=${PO_DIR}/kio-afp.pot --locale=$LANG_CODE.UTF-8 --output-file=${PO_DIR}/$LANG_CODE.po --no-translator"
+		COMMAND /bin/sh -c "if [ -z \"$LANG_CODE\" ]; then echo 'Usage: LANG_CODE=xx cmake --build build --target init-po'; exit 1; fi; mkdir -p ${PO_DIR}/$LANG_CODE && ${MSGINIT_EXECUTABLE} --input=${PO_DIR}/kio-afp.pot --locale=$LANG_CODE.UTF-8 --output-file=${PO_DIR}/$LANG_CODE/kio-afp.po --no-translator"
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		COMMENT "Initialize a new PO file (set LANG_CODE env var)"
 		VERBATIM
