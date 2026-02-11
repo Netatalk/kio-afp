@@ -95,6 +95,8 @@ kioclient remove afp://localhost/afp1/testdir
 - Regenerate the POT file using the built-in CMake target:
     - `cmake --build build --target update-po` (or `make update-po`). This will regenerate the POT file and, if `msgmerge` is installed, automatically merge the updated POT into existing PO files under `po/` using gettext's fuzzy-matching rules.
 
-## License
+## Copyright and License
 
-GNU General Public License v2
+Copyright (C) 2025-2026 Daniel Markstedt <daniel@mindani.net>
+
+This software is distributed under the terms of the GNU General Public License v2
