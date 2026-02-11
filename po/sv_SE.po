@@ -1,3 +1,22 @@
+# Swedish translations for kio-afp package
+# Svenska översättningar för paket kio-afp.
+# Copyright (C) 2026 Daniel Markstedt <daniel@mindani.net>
+# This file is distributed under the same license as the kio-afp package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 22:09+0100\n"
+"PO-Revision-Date: 2026-02-11 22:09+0100\n"
+"Last-Translator: Daniel Markstedt\n"
+"Language-Team: none\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
 #: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:203
 msgid "AFP Login"
 msgstr "AFP-login"
