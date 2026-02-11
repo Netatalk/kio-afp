@@ -45,6 +45,7 @@ endif()
 ## discoverable by KProtocolInfoFactory (it reads plugin metadata from .so)
 
 add_executable(kio_afp_exec ${kio_afp_sources})
+set_target_properties(kio_afp_exec PROPERTIES OUTPUT_NAME "kio-afp")
 target_include_directories(kio_afp_exec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(kio_afp_exec PRIVATE ${LIBAFPCLIENT_INCLUDE_DIRS} ${LIBAFPSL_INCLUDE_DIRS})
 target_link_libraries(kio_afp_exec PRIVATE
@@ -57,7 +58,7 @@ foreach(_dir IN LISTS LIBAFPCLIENT_LIBRARY_DIRS LIBAFPSL_LIBRARY_DIRS)
     target_link_options(kio_afp_exec PRIVATE "-Wl,-rpath,${_dir}")
 endforeach()
 target_compile_options(kio_afp_exec PRIVATE ${LIBAFPCLIENT_CFLAGS_OTHER} ${LIBAFPSL_CFLAGS_OTHER})
-target_compile_definitions(kio_afp_exec PRIVATE TRANSLATION_DOMAIN=\"kio_afp\")
+target_compile_definitions(kio_afp_exec PRIVATE TRANSLATION_DOMAIN=\"kio-afp\")
 install(TARGETS kio_afp_exec
     RUNTIME DESTINATION ${KIO_WORKER_INSTALL_DIR})
 
@@ -75,7 +76,7 @@ foreach(_dir IN LISTS LIBAFPCLIENT_LIBRARY_DIRS LIBAFPSL_LIBRARY_DIRS)
     target_link_options(kio_afp PRIVATE "-Wl,-rpath,${_dir}")
 endforeach()
 target_compile_options(kio_afp PRIVATE ${LIBAFPCLIENT_CFLAGS_OTHER} ${LIBAFPSL_CFLAGS_OTHER})
-target_compile_definitions(kio_afp PRIVATE TRANSLATION_DOMAIN=\"kio_afp\")
+target_compile_definitions(kio_afp PRIVATE TRANSLATION_DOMAIN=\"kio-afp\")
 
 install(TARGETS kio_afp
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/plugins/kf6/kio)

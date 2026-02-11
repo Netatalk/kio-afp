@@ -1,0 +1,108 @@
+# Swedish translations for kio-afp package
+# Svenska översättningar för paket kio-afp.
+# Copyright (C) 2026 Daniel Markstedt <daniel@mindani.net>
+# This file is distributed under the same license as the kio-afp package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 22:09+0100\n"
+"PO-Revision-Date: 2026-02-11 22:09+0100\n"
+"Last-Translator: Daniel Markstedt\n"
+"Language-Team: none\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:203
+msgid "AFP Login"
+msgstr "AFP-login"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:204
+msgid "Please enter your username and password."
+msgstr "Var god ange namn och lösenord."
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:206
+msgid "Server:"
+msgstr "Server:"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:280
+msgid "Authentication failed. Please try again."
+msgstr "Autentiseringen misslyckades. Försök igen."
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:298
+msgid "No volume specified in URL"
+msgstr "Ingen volym angiven i URL"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:442
+msgid "Volume not found: %1"
+msgstr "Volymen kunde inte hittas: %1"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:445
+msgid "Server not found"
+msgstr "Servern kunde inte hittas"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:450
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:482
+msgid "Cannot communicate with afpsld daemon"
+msgstr "Kunde inte kommunicera med afpsld-demonen"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:455
+msgid "Not connected to server"
+msgstr "Inte ansluten till server"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:458
+msgid "Not attached to volume"
+msgstr "Inte kopplad till volym"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:461
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:473
+msgid "Authentication failed"
+msgstr "Autentiseringen misslyckades"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:464
+msgid "AFP error %1"
+msgstr "AFP-felmeddelande %1"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:476
+msgid "Could not find AFP server"
+msgstr "Kunde inte hitta AFP-server"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:479
+msgid "Connection timed out"
+msgstr "Anslutningen var avbruten"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:485
+msgid "AFP connect error %1"
+msgstr "AFP-anslutningsproblem %1"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:735
+msgid "Cannot write to volume root"
+msgstr "Kan inte skriva till volymens rot"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:786
+msgid "Error reading data from client"
+msgstr "Fel vid inläsning av data från klienten"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:825
+msgid "Cannot create directory at volume level"
+msgstr "Kan inte skapa katalog på volymnivå"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:846
+msgid "Cannot delete volume root"
+msgstr "Kan inte radera volymens rot"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:873
+msgid "Cannot rename volume roots"
+msgstr "Kan inte ändra namn på volymens rot"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:877
+msgid "Cannot rename across different volumes"
+msgstr "Kan inte ändra namn mellan olika volymer"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:906
+msgid "Cannot chmod volume root"
+msgstr "Kan inte göra chmod på volymens rot"

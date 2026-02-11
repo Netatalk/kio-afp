@@ -24,7 +24,7 @@ qt_standard_project_setup()
 add_subdirectory(src)
 
 # Set translation domain for extraction/build
-add_definitions(-DTRANSLATION_DOMAIN=\"kio_afp\")
+add_definitions(-DTRANSLATION_DOMAIN=\"kio-afp\")
 
 # Install translations from po/ using KF6 i18n helpers
 ki18n_install(po)
@@ -33,6 +33,7 @@ ki18n_install(po)
 find_program(XGETTEXT_EXECUTABLE xgettext)
 find_program(EXTRACTRC_EXECUTABLE extractrc)
 find_program(MSGMERGE_EXECUTABLE msgmerge)
+find_program(MSGINIT_EXECUTABLE msginit)
 
 if(XGETTEXT_EXECUTABLE)
 	# Collect source files to extract translatable strings from
@@ -47,7 +48,7 @@ if(XGETTEXT_EXECUTABLE)
 		"${CMAKE_SOURCE_DIR}/*.rc"
 	)
 	set(PO_DIR "${CMAKE_SOURCE_DIR}/po")
-	set(POTFILE "${PO_DIR}/kio_afp.pot")
+	set(POTFILE "${PO_DIR}/kio-afp.pot")
 
 	# Create a newline-separated list of source files at configure time
 	string(REPLACE ";" "\n" I18N_SOURCES_TEXT "${I18N_SOURCES}")
@@ -75,9 +76,9 @@ if(XGETTEXT_EXECUTABLE)
 			--files-from=${CMAKE_BINARY_DIR}/i18n_sources.list
 			${CMAKE_BINARY_DIR}/rc.cpp
 		COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/rc.cpp
-		# Merge updated POT into existent PO files if msgmerge is available
-		COMMAND ${CMAKE_COMMAND} -E echo "Merging POT into existing PO files..."
-		COMMAND /bin/sh -c "if (${MSGMERGE_EXECUTABLE} --version >/dev/null 2>&1); then for p in ${PO_DIR}/*.po; do if [ -f \"$p\" ]; then ${MSGMERGE_EXECUTABLE} --update --backup=none \"$p\" ${POTFILE}; fi; done; else echo 'msgmerge not found, skip merging'; fi"
+		# Reinitialize headerless PO files with msginit, then merge all PO files
+		COMMAND ${CMAKE_COMMAND} -E echo "Updating existing PO files..."
+		COMMAND /bin/sh -c "for p in ${PO_DIR}/*/kio-afp.po; do if [ -f \"$p\" ]; then lang=$(basename $(dirname \"$p\")); if ! grep -q '^msgid \"\"' \"$p\"; then if command -v ${MSGINIT_EXECUTABLE} >/dev/null 2>&1; then echo \"Initializing $lang with gettext headers...\"; ${MSGINIT_EXECUTABLE} --input=${POTFILE} --locale=$lang.UTF-8 --output-file=\"$p\" --no-translator 2>/dev/null; else echo \"msginit not found, cannot add headers to $lang\"; fi; elif command -v ${MSGMERGE_EXECUTABLE} >/dev/null 2>&1; then ${MSGMERGE_EXECUTABLE} --update --backup=none \"$p\" ${POTFILE}; fi; fi; done"
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		VERBATIM
 	)
@@ -85,6 +86,17 @@ else()
 	add_custom_target(update-po
 		COMMAND ${CMAKE_COMMAND} -E echo "xgettext not found; update-po target is a no-op"
 		COMMENT "xgettext not found: update-po skipped"
+	)
+endif()
+
+# Target to initialize a new PO file for a given language:
+#   LANG_CODE=fr cmake --build build --target init-po
+if(MSGINIT_EXECUTABLE)
+	add_custom_target(init-po
+		COMMAND /bin/sh -c "if [ -z \"$LANG_CODE\" ]; then echo 'Usage: LANG_CODE=xx cmake --build build --target init-po'; exit 1; fi; mkdir -p ${PO_DIR}/$LANG_CODE && ${MSGINIT_EXECUTABLE} --input=${PO_DIR}/kio-afp.pot --locale=$LANG_CODE.UTF-8 --output-file=${PO_DIR}/$LANG_CODE/kio-afp.po --no-translator"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		COMMENT "Initialize a new PO file (set LANG_CODE env var)"
+		VERBATIM
 	)
 endif()
 
