@@ -954,7 +954,7 @@ extern "C" {
 int Q_DECL_EXPORT kdemain(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("kio_afp"));
-    KLocalizedString::setApplicationDomain("kio_afp");
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     if (argc < 4) {
         fprintf(stderr, "Usage: kio_afp protocol pool app\n");
         return 1;

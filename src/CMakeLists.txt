@@ -57,7 +57,7 @@ foreach(_dir IN LISTS LIBAFPCLIENT_LIBRARY_DIRS LIBAFPSL_LIBRARY_DIRS)
     target_link_options(kio_afp_exec PRIVATE "-Wl,-rpath,${_dir}")
 endforeach()
 target_compile_options(kio_afp_exec PRIVATE ${LIBAFPCLIENT_CFLAGS_OTHER} ${LIBAFPSL_CFLAGS_OTHER})
-target_compile_definitions(kio_afp_exec PRIVATE TRANSLATION_DOMAIN=\"kio_afp\")
+target_compile_definitions(kio_afp_exec PRIVATE TRANSLATION_DOMAIN=\"kio-afp\")
 install(TARGETS kio_afp_exec
     RUNTIME DESTINATION ${KIO_WORKER_INSTALL_DIR})
 
@@ -75,7 +75,7 @@ foreach(_dir IN LISTS LIBAFPCLIENT_LIBRARY_DIRS LIBAFPSL_LIBRARY_DIRS)
     target_link_options(kio_afp PRIVATE "-Wl,-rpath,${_dir}")
 endforeach()
 target_compile_options(kio_afp PRIVATE ${LIBAFPCLIENT_CFLAGS_OTHER} ${LIBAFPSL_CFLAGS_OTHER})
-target_compile_definitions(kio_afp PRIVATE TRANSLATION_DOMAIN=\"kio_afp\")
+target_compile_definitions(kio_afp PRIVATE TRANSLATION_DOMAIN=\"kio-afp\")
 
 install(TARGETS kio_afp
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/plugins/kf6/kio)
