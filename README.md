@@ -29,10 +29,6 @@ This installs:
 
 Once installed, Dolphin, Konqueror, and other KDE file managers will recognize `afp://` URLs.
 
-```shell
-afp_connect --server localhost --share afp1 --user myuser --pass mypass mount ~/mnt
-```
-
 ## Test
 
 Open Dolphin and try connecting to an AFP server:
