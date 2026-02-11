@@ -329,10 +329,11 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
         qWarning() << "kio_afp: getvolid returned" << ret << "vid=" << vid;
 
         if (ret != AFP_SERVER_RESULT_OKAY) {
-            // Clear local state and reconnect without calling
-            // afp_sl_disconnect — that tears down the shared daemon
-            // server connection and disrupts other KIO workers.
-            qWarning() << "kio_afp: getvolid failed, reconnecting";
+            // Stale daemon state: volume is ALREADY_MOUNTED but no
+            // server connection owns it.  Disconnect to clean up,
+            // then reconnect and re-attach.
+            qWarning() << "kio_afp: getvolid failed, resetting connection";
+            afp_sl_disconnect(&m_serverId);
             m_serverId = nullptr;
             m_cachedServer.clear();
 
@@ -342,8 +343,18 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
 
             vid = nullptr;
             ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
-            qWarning() << "kio_afp: re-attach after reconnect returned" << ret
+            qWarning() << "kio_afp: re-attach after reset returned" << ret
                        << "vid=" << vid;
+
+            // Another worker may have re-attached between our
+            // disconnect and re-attach; try getvolid once more.
+            if (ret == AFP_SERVER_RESULT_ALREADY_MOUNTED
+                || ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
+                ret = afp_sl_getvolid(&pu.afpUrl, &vid);
+                qWarning() << "kio_afp: getvolid retry returned" << ret
+                           << "vid=" << vid;
+            }
+
             if (ret != AFP_SERVER_RESULT_OKAY)
                 return mapAfpError(ret, pu.volume);
         }
