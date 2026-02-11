@@ -52,11 +52,11 @@ msgstr "Kunde inte kommunicera med afpsld-demonen"
 
 #: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:455
 msgid "Not connected to server"
-msgstr "Inte ansluten till någon server"
+msgstr "Inte ansluten till server"
 
 #: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:458
 msgid "Not attached to volume"
-msgstr "Inte kopplad till någon volym"
+msgstr "Inte kopplad till volym"
 
 #: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:461
 #: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:473
