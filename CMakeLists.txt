@@ -33,6 +33,7 @@ ki18n_install(po)
 find_program(XGETTEXT_EXECUTABLE xgettext)
 find_program(EXTRACTRC_EXECUTABLE extractrc)
 find_program(MSGMERGE_EXECUTABLE msgmerge)
+find_program(MSGINIT_EXECUTABLE msginit)
 
 if(XGETTEXT_EXECUTABLE)
 	# Collect source files to extract translatable strings from
@@ -75,9 +76,9 @@ if(XGETTEXT_EXECUTABLE)
 			--files-from=${CMAKE_BINARY_DIR}/i18n_sources.list
 			${CMAKE_BINARY_DIR}/rc.cpp
 		COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/rc.cpp
-		# Merge updated POT into existent PO files if msgmerge is available
-		COMMAND ${CMAKE_COMMAND} -E echo "Merging POT into existing PO files..."
-		COMMAND /bin/sh -c "if (${MSGMERGE_EXECUTABLE} --version >/dev/null 2>&1); then for p in ${PO_DIR}/*.po; do if [ -f \"$p\" ]; then ${MSGMERGE_EXECUTABLE} --update --backup=none \"$p\" ${POTFILE}; fi; done; else echo 'msgmerge not found, skip merging'; fi"
+		# Reinitialize headerless PO files with msginit, then merge all PO files
+		COMMAND ${CMAKE_COMMAND} -E echo "Updating existing PO files..."
+		COMMAND /bin/sh -c "for p in ${PO_DIR}/*.po; do if [ -f \"$p\" ]; then lang=$(basename \"$p\" .po); if ! grep -q '^msgid \"\"' \"$p\"; then if command -v ${MSGINIT_EXECUTABLE} >/dev/null 2>&1; then echo \"Initializing $lang.po with gettext headers...\"; ${MSGINIT_EXECUTABLE} --input=${POTFILE} --locale=$lang.UTF-8 --output-file=\"$p\" --no-translator 2>/dev/null; else echo \"msginit not found, cannot add headers to $lang.po\"; fi; elif command -v ${MSGMERGE_EXECUTABLE} >/dev/null 2>&1; then ${MSGMERGE_EXECUTABLE} --update --backup=none \"$p\" ${POTFILE}; fi; fi; done"
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		VERBATIM
 	)
@@ -85,6 +86,17 @@ else()
 	add_custom_target(update-po
 		COMMAND ${CMAKE_COMMAND} -E echo "xgettext not found; update-po target is a no-op"
 		COMMENT "xgettext not found: update-po skipped"
+	)
+endif()
+
+# Target to initialize a new PO file for a given language:
+#   LANG_CODE=fr cmake --build build --target init-po
+if(MSGINIT_EXECUTABLE)
+	add_custom_target(init-po
+		COMMAND /bin/sh -c "if [ -z \"$LANG_CODE\" ]; then echo 'Usage: LANG_CODE=xx cmake --build build --target init-po'; exit 1; fi; ${MSGINIT_EXECUTABLE} --input=${PO_DIR}/kio_afp.pot --locale=$LANG_CODE.UTF-8 --output-file=${PO_DIR}/$LANG_CODE.po --no-translator"
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		COMMENT "Initialize a new PO file (set LANG_CODE env var)"
+		VERBATIM
 	)
 endif()
 
