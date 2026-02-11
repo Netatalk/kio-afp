@@ -1,0 +1,89 @@
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:203
+msgid "AFP Login"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:204
+msgid "Please enter your username and password."
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:206
+msgid "Server:"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:280
+msgid "Authentication failed. Please try again."
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:298
+msgid "No volume specified in URL"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:442
+msgid "Volume not found: %1"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:445
+msgid "Server not found"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:450
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:482
+msgid "Cannot communicate with afpsld daemon"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:455
+msgid "Not connected to server"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:458
+msgid "Not attached to volume"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:461
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:473
+msgid "Authentication failed"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:464
+msgid "AFP error %1"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:476
+msgid "Could not find AFP server"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:479
+msgid "Connection timed out"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:485
+msgid "AFP connect error %1"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:735
+msgid "Cannot write to volume root"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:786
+msgid "Error reading data from client"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:825
+msgid "Cannot create directory at volume level"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:846
+msgid "Cannot delete volume root"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:873
+msgid "Cannot rename volume roots"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:877
+msgid "Cannot rename across different volumes"
+msgstr ""
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:906
+msgid "Cannot chmod volume root"
+msgstr ""
