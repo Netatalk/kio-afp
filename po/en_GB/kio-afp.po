@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-11 22:09+0100\n"
+"POT-Creation-Date: 2026-02-13 22:56+0100\n"
 "PO-Revision-Date: 2026-02-11 22:09+0100\n"
 "Last-Translator: Daniel Markstedt\n"
 "Language-Team: none\n"
@@ -16,92 +16,97 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:203
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:208
 msgid "AFP Login"
 msgstr "AFP Login"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:204
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:209
 msgid "Please enter your username and password."
 msgstr "Please enter your username and password."
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:206
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:211
 msgid "Server:"
 msgstr "Server:"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:280
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:263
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:285
+msgid "AFP daemon not responding (retry in %1 s)"
+msgstr "AFP daemon not responding (retry in %1 s)"
+
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:360
 msgid "Authentication failed. Please try again."
 msgstr "Authentication failed. Please try again."
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:298
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:410
 msgid "No volume specified in URL"
 msgstr "No volume specified in URL"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:442
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:554
 msgid "Volume not found: %1"
 msgstr "Volume not found: %1"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:445
-msgid "Server not found"
-msgstr "Server not found"
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:557
+msgid "AFP server not found"
+msgstr "AFP server not found"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:450
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:482
-msgid "Cannot communicate with afpsld daemon"
-msgstr "Cannot communicate with afpsld daemon"
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:562
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:594
+msgid "Cannot communicate with AFP server"
+msgstr "Cannot communicate with AFP server"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:455
-msgid "Not connected to server"
-msgstr "Not connected to server"
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:567
+msgid "Not connected to AFP server"
+msgstr "Not connected to AFP server"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:458
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:570
 msgid "Not attached to volume"
 msgstr "Not attached to volume"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:461
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:473
-msgid "Authentication failed"
-msgstr "Authentication failed"
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:573
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:585
+msgid "Authentication with AFP server failed"
+msgstr "Authentication with AFP server failed"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:464
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:576
 msgid "AFP error %1"
 msgstr "AFP error %1"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:476
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:588
 msgid "Could not find AFP server"
 msgstr "Could not find AFP server"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:479
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:591
 msgid "Connection timed out"
 msgstr "Connection timed out"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:485
-msgid "AFP connect error %1"
-msgstr "AFP connect error %1"
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:597
+msgid "AFP connection error %1"
+msgstr "AFP connection error %1"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:735
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:851
 msgid "Cannot write to volume root"
 msgstr "Cannot write to volume root"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:786
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:902
 msgid "Error reading data from client"
 msgstr "Error reading data from client"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:825
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:941
 msgid "Cannot create directory at volume level"
 msgstr "Cannot create directory at volume level"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:846
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:962
 msgid "Cannot delete volume root"
 msgstr "Cannot delete volume root"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:873
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:989
 msgid "Cannot rename volume roots"
 msgstr "Cannot rename volume roots"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:877
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:993
 msgid "Cannot rename across different volumes"
 msgstr "Cannot rename across different volumes"
 
-#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:906
+#: /home/dmark/dev/kio-afp/src/kafp_worker.cpp:1022
 msgid "Cannot chmod volume root"
 msgstr "Cannot chmod volume root"
