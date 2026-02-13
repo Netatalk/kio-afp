@@ -1070,6 +1070,9 @@ KIO::WorkerResult AfpWorker::fileSystemFreeSpace(const QUrl &url)
 
 extern "C" {
 int Q_DECL_EXPORT kdemain(int argc, char **argv) {
+    // Ignore SIGPIPE to prevent crash on broken socket
+    std::signal(SIGPIPE, SIG_IGN);
+
     QCoreApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("kio-afp"));
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
