@@ -23,6 +23,9 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <cstring>
+#include <unistd.h>
+#include <sys/file.h>
+#include <QStandardPaths>
 
 extern "C" {
     #include <afp.h>
@@ -238,7 +241,23 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         dialogUsed = true;
     }
 
+    // Serialize afp_sl_connect (including retries) across worker processes
+    // to avoid overwhelming the afpsld daemon with concurrent connections.
+    // The lock is held for the entire connect+retry sequence so that only
+    // one worker battles through retries while others queue behind it.
+    const QByteArray lockPath =
+        (QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)
+         + QStringLiteral("/kio-afp-connect.lock")).toLocal8Bit();
+
+    int lockFd = ::open(lockPath.constData(), O_CREAT | O_RDWR, 0600);
+    if (lockFd >= 0)
+        flock(lockFd, LOCK_EX);
+
     // Connect / retry loop
+    constexpr int MAX_CONNECT_RETRIES = 3;
+    constexpr int BASE_RETRY_DELAY_MS = 500;
+    int transientRetries = 0;
+
     for (;;) {
         serverid_t sid = nullptr;
         char loginmesg[AFP_LOGINMESG_LEN] = {};
@@ -254,6 +273,9 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
 
         if (ret == AFP_SERVER_RESULT_OKAY
             || ret == AFP_SERVER_RESULT_ALREADY_CONNECTED) {
+            if (lockFd >= 0)
+                ::close(lockFd);
+
             m_serverId = sid;
             m_cachedServer = pu.server;
             m_cachedUser = QByteArray(pu.afpUrl.username);
@@ -272,23 +294,51 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
             return KIO::WorkerResult::pass();
         }
 
-        if (ret != AFP_SERVER_RESULT_NOAUTHENT)
-            return mapAfpConnectError(ret);
+        if (ret == AFP_SERVER_RESULT_NOAUTHENT) {
+            // Release lock during password dialog so other workers aren't blocked
+            if (lockFd >= 0) {
+                ::close(lockFd);
+                lockFd = -1;
+            }
 
-        // Auth failed — re-prompt with error message
-        info.setModified(false);
-        int errCode = openPasswordDialog(info,
-            i18n("Authentication failed. Please try again."));
-        if (errCode != 0)
-            return KIO::WorkerResult::fail(KIO::ERR_USER_CANCELED, pu.server);
+            // Auth failed — re-prompt with error message
+            info.setModified(false);
+            int errCode = openPasswordDialog(info,
+                i18n("Authentication failed. Please try again."));
+            if (errCode != 0)
+                return KIO::WorkerResult::fail(KIO::ERR_USER_CANCELED, pu.server);
 
-        QByteArray u = info.username.toUtf8();
-        QByteArray p = info.password.toUtf8();
-        std::strncpy(pu.afpUrl.username, u.constData(),
-                     sizeof(pu.afpUrl.username) - 1);
-        std::strncpy(pu.afpUrl.password, p.constData(),
-                     sizeof(pu.afpUrl.password) - 1);
-        dialogUsed = true;
+            QByteArray u = info.username.toUtf8();
+            QByteArray p = info.password.toUtf8();
+            std::strncpy(pu.afpUrl.username, u.constData(),
+                         sizeof(pu.afpUrl.username) - 1);
+            std::strncpy(pu.afpUrl.password, p.constData(),
+                         sizeof(pu.afpUrl.password) - 1);
+            dialogUsed = true;
+
+            // Re-acquire lock before next attempt
+            lockFd = ::open(lockPath.constData(), O_CREAT | O_RDWR, 0600);
+            if (lockFd >= 0)
+                flock(lockFd, LOCK_EX);
+            continue;
+        }
+
+        // Transient error (e.g. daemon overloaded) — retry with backoff
+        // Lock stays held so other workers don't pile on while we wait.
+        if (transientRetries < MAX_CONNECT_RETRIES) {
+            int delay = BASE_RETRY_DELAY_MS * (1 << transientRetries);
+            qWarning() << "kio-afp: connect failed (" << ret
+                       << "), retrying in" << delay << "ms (attempt"
+                       << (transientRetries + 1) << "of"
+                       << MAX_CONNECT_RETRIES << ")";
+            QThread::msleep(delay);
+            ++transientRetries;
+            continue;
+        }
+
+        if (lockFd >= 0)
+            ::close(lockFd);
+        return mapAfpConnectError(ret);
     }
 }
 
@@ -497,22 +547,17 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
 
     ParsedUrl pu = parseAfpUrl(url);
 
-    // Server root: afp://server
+    // Server root: afp://server — return a synthetic directory entry.
+    // Skip connecting: listDir() will establish the connection when it
+    // actually needs to talk to the daemon, reducing connect call volume.
     if (!pu.hasVolume) {
-        auto r = ensureConnected(pu);
-        if (!r.success())
-            return r;
         statEntry(serverOrVolumeEntry(QString()));
         return KIO::WorkerResult::pass();
     }
 
-    // Volume root: afp://server/volume — return a synthetic entry so that
-    // browsing the server root does not eagerly attach every volume.
+    // Volume root: afp://server/volume — return a synthetic directory entry.
     // The volume will be attached on demand when the user enters it.
     if (!pu.hasPath) {
-        auto r = ensureConnected(pu);
-        if (!r.success())
-            return r;
         statEntry(serverOrVolumeEntry(pu.volume));
         return KIO::WorkerResult::pass();
     }
