@@ -14,6 +14,7 @@
 #include <QDebug>
 #include <QCoreApplication>
 #include <QMimeDatabase>
+#include <QThread>
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -505,19 +506,14 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
         return KIO::WorkerResult::pass();
     }
 
-    // Volume root: afp://server/volume — stat "/" on the volume for real permissions
+    // Volume root: afp://server/volume — return a synthetic entry so that
+    // browsing the server root does not eagerly attach every volume.
+    // The volume will be attached on demand when the user enters it.
     if (!pu.hasPath) {
-        auto r = ensureAttached(pu);
+        auto r = ensureConnected(pu);
         if (!r.success())
             return r;
-
-        struct stat st{};
-        int ret = afp_sl_stat(&m_volumeId, "/", &pu.afpUrl, &st);
-        if (ret == AFP_SERVER_RESULT_OKAY) {
-            statEntry(statToUDS(st, pu.volume));
-        } else {
-            statEntry(serverOrVolumeEntry(pu.volume));
-        }
+        statEntry(serverOrVolumeEntry(pu.volume));
         return KIO::WorkerResult::pass();
     }
 
@@ -567,6 +563,20 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
         unsigned int numVols = 0;
 
         int ret = afp_sl_getvols(&pu.afpUrl, 0, MAX_VOLS, &numVols, vols);
+        qWarning() << "kio-afp: getvols returned" << ret
+                   << "numVols=" << numVols;
+
+        // On a fresh daemon the volume list may not be ready yet.
+        // Retry once after a short delay if we got zero volumes.
+        if (ret == AFP_SERVER_RESULT_OKAY && numVols == 0) {
+            qWarning() << "kio-afp: empty volume list, retrying after delay";
+            QThread::msleep(500);
+            numVols = 0;
+            ret = afp_sl_getvols(&pu.afpUrl, 0, MAX_VOLS, &numVols, vols);
+            qWarning() << "kio-afp: getvols retry returned" << ret
+                       << "numVols=" << numVols;
+        }
+
         if (ret != AFP_SERVER_RESULT_OKAY)
             return mapAfpError(ret, pu.server);
 
