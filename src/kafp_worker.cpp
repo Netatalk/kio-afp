@@ -23,6 +23,7 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <cstring>
+#include <csignal>
 #include <unistd.h>
 #include <sys/file.h>
 #include <QStandardPaths>
@@ -241,21 +242,56 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         dialogUsed = true;
     }
 
+    // Paths for cross-process coordination, stored under the user's runtime dir.
+    const QString runtimeDir =
+        QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    const QByteArray lockPath =
+        (runtimeDir + QStringLiteral("/kio-afp-connect.lock")).toLocal8Bit();
+    const QByteArray breakerPath =
+        (runtimeDir + QStringLiteral("/kio-afp-connect.breaker")).toLocal8Bit();
+
+    // Circuit breaker: if a recent worker already failed to connect,
+    // don't even try — the daemon is likely in a bad state.
+    constexpr int BREAKER_COOLDOWN_SECS = 30;
+    struct ::stat breakerSt{};
+    if (::stat(breakerPath.constData(), &breakerSt) == 0) {
+        time_t age = time(nullptr) - breakerSt.st_mtime;
+        if (age < BREAKER_COOLDOWN_SECS) {
+            qWarning() << "kio-afp: connect circuit breaker active ("
+                       << age << "s ago), failing fast";
+            return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
+                       i18n("AFP daemon not responding (retry in %1 s)",
+                            BREAKER_COOLDOWN_SECS - static_cast<int>(age)));
+        }
+        // Breaker expired — remove it and try normally
+        ::unlink(breakerPath.constData());
+    }
+
     // Serialize afp_sl_connect (including retries) across worker processes
     // to avoid overwhelming the afpsld daemon with concurrent connections.
-    // The lock is held for the entire connect+retry sequence so that only
-    // one worker battles through retries while others queue behind it.
-    const QByteArray lockPath =
-        (QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)
-         + QStringLiteral("/kio-afp-connect.lock")).toLocal8Bit();
-
     int lockFd = ::open(lockPath.constData(), O_CREAT | O_RDWR, 0600);
     if (lockFd >= 0)
         flock(lockFd, LOCK_EX);
 
+    // After acquiring the lock, check the breaker again — the worker ahead
+    // of us may have tripped it while we were waiting.
+    if (::stat(breakerPath.constData(), &breakerSt) == 0) {
+        time_t age = time(nullptr) - breakerSt.st_mtime;
+        if (age < BREAKER_COOLDOWN_SECS) {
+            qWarning() << "kio-afp: connect circuit breaker tripped while waiting";
+            if (lockFd >= 0)
+                ::close(lockFd);
+            return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
+                       i18n("AFP daemon not responding (retry in %1 s)",
+                            BREAKER_COOLDOWN_SECS - static_cast<int>(age)));
+        }
+        ::unlink(breakerPath.constData());
+    }
+
     // Connect / retry loop
     constexpr int MAX_CONNECT_RETRIES = 3;
     constexpr int BASE_RETRY_DELAY_MS = 500;
+    constexpr unsigned int CONNECT_TIMEOUT_SECS = 15;
     int transientRetries = 0;
 
     for (;;) {
@@ -264,10 +300,18 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         int connectError = 0;
         unsigned int uamMask = default_uams_mask();
 
+        // Hard timeout: if afp_sl_connect busy-loops inside the library,
+        // SIGALRM will terminate this worker process so it doesn't spin
+        // at 100% CPU forever.  KIO will clean up and show an error.
+        std::signal(SIGALRM, SIG_DFL);
+        alarm(CONNECT_TIMEOUT_SECS);
+
         qWarning() << "kio-afp: connect server=" << pu.server
                    << "user=" << pu.afpUrl.username;
         int ret = afp_sl_connect(&pu.afpUrl, uamMask, &sid, loginmesg,
                                  &connectError);
+
+        alarm(0); // cancel timeout — connect returned normally
         qWarning() << "kio-afp: connect returned" << ret
                    << "sid=" << sid << "err=" << connectError;
 
@@ -275,6 +319,9 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
             || ret == AFP_SERVER_RESULT_ALREADY_CONNECTED) {
             if (lockFd >= 0)
                 ::close(lockFd);
+
+            // Successful connect clears any stale breaker
+            ::unlink(breakerPath.constData());
 
             m_serverId = sid;
             m_cachedServer = pu.server;
@@ -335,6 +382,14 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
             ++transientRetries;
             continue;
         }
+
+        // All retries exhausted — trip the circuit breaker so other
+        // workers fail fast instead of also hammering the daemon.
+        qWarning() << "kio-afp: tripping connect circuit breaker for"
+                   << BREAKER_COOLDOWN_SECS << "s";
+        int bfd = ::open(breakerPath.constData(), O_CREAT | O_WRONLY, 0600);
+        if (bfd >= 0)
+            ::close(bfd);
 
         if (lockFd >= 0)
             ::close(lockFd);
