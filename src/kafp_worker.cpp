@@ -315,6 +315,12 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         qWarning() << "kio-afp: connect returned" << ret
                    << "sid=" << sid << "err=" << connectError;
 
+        // Sanity check: if success reported but no session ID, treat as daemon error
+        if ((ret == AFP_SERVER_RESULT_OKAY || ret == AFP_SERVER_RESULT_ALREADY_CONNECTED) && !sid) {
+            qWarning() << "kio-afp: connect returned success but sid is null, treating as error";
+            ret = AFP_SERVER_RESULT_AFPFSD_ERROR;
+        }
+
         if (ret == AFP_SERVER_RESULT_OKAY
             || ret == AFP_SERVER_RESULT_ALREADY_CONNECTED) {
             if (lockFd >= 0)
@@ -548,23 +554,23 @@ KIO::WorkerResult AfpWorker::mapAfpError(int ret, const QString &path)
                    i18n("Volume not found: %1", path));
     case AFP_SERVER_RESULT_NOSERVER:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   i18n("Server not found"));
+                   i18n("AFP server not found"));
     case AFP_SERVER_RESULT_TIMEDOUT:
         return KIO::WorkerResult::fail(KIO::ERR_SERVER_TIMEOUT, path);
     case AFP_SERVER_RESULT_AFPFSD_ERROR:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   i18n("Cannot communicate with afpsld daemon"));
+                   i18n("Cannot communicate with AFP server"));
     case AFP_SERVER_RESULT_NOTSUPPORTED:
         return KIO::WorkerResult::fail(KIO::ERR_UNSUPPORTED_ACTION, path);
     case AFP_SERVER_RESULT_NOTCONNECTED:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   i18n("Not connected to server"));
+                   i18n("Not connected to AFP server"));
     case AFP_SERVER_RESULT_NOTATTACHED:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
                    i18n("Not attached to volume"));
     case AFP_SERVER_RESULT_NOAUTHENT:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_AUTHENTICATE,
-                   i18n("Authentication failed"));
+                   i18n("Authentication with AFP server failed"));
     default:
         return KIO::WorkerResult::fail(KIO::ERR_INTERNAL,
                    i18n("AFP error %1", ret));
@@ -576,7 +582,7 @@ KIO::WorkerResult AfpWorker::mapAfpConnectError(int ret)
     switch (ret) {
     case AFP_SERVER_RESULT_NOAUTHENT:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_AUTHENTICATE,
-                   i18n("Authentication failed"));
+                   i18n("Authentication with AFP server failed"));
     case AFP_SERVER_RESULT_NOSERVER:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
                    i18n("Could not find AFP server"));
@@ -585,10 +591,10 @@ KIO::WorkerResult AfpWorker::mapAfpConnectError(int ret)
                    i18n("Connection timed out"));
     case AFP_SERVER_RESULT_AFPFSD_ERROR:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   i18n("Cannot communicate with afpsld daemon"));
+                   i18n("Cannot communicate with AFP server"));
     default:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   i18n("AFP connect error %1", ret));
+                   i18n("AFP connection error %1", ret));
     }
 }
 
