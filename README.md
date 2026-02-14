@@ -1,9 +1,10 @@
 # kio-afp
 
 Frontend and KIO Worker for the AFP (Apple Filing Protocol) for KDE 6+,
-built using the afpfs-ng Stateless Client Library.
+built using the [afpfs-ng](https://github.com/Netatalk/afpfs-ng) Stateless Client Library.
 
-Inspired by *kioslave_afp* for KDE 3 by Alex deVries, but was written from scratch and shares no code with the original.
+Inspired by [kioslave_afp](https://github.com/Netatalk/kioslave_afp) for KDE 3 by Alex deVries,
+however the two share no code.
 
 ## Build Requirements
 - Qt 6.5+ (Core, Widgets)
@@ -93,7 +94,6 @@ kioclient remove afp://localhost/afp1/testdir
 
 - **Entry point**: `kdemain()` function in [src/kafp_worker.cpp](src/kafp_worker.cpp) initializes the worker and enters dispatch loop.
 - **Worker class**: `AfpWorker` inherits from `KIO::WorkerBase` and implements core operations (`get()`, `stat()`, `listDir()`).
-- **UI**: [src/afploginwidget.h/cpp](src/afploginwidget.h) provides login dialog widgets (currently minimal stubs).
 
 ### Internationalization (i18n)
 
