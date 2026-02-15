@@ -1,12 +1,13 @@
 # kio-afp
 
-Frontend and KIO Worker for the AFP (Apple Filing Protocol) for KDE 6+,
-built using the [afpfs-ng](https://github.com/Netatalk/afpfs-ng) Stateless Client Library.
+KIO Worker for AFP (Apple Filing Protocol) using KDE Frameworks 6 and Qt 6,
+built on top of the [afpfs-ng](https://github.com/Netatalk/afpfs-ng) Stateless Client Library.
 
 Inspired by [kioslave_afp](https://github.com/Netatalk/kioslave_afp) for KDE 3 by Alex deVries,
-however the two share no code.
+however this is a complete rewrite and the two share no code.
 
 ## Build Requirements
+
 - Qt 6.5+ (Core, Widgets)
 - KDE Frameworks 6.20+ (KIO, I18n)
 - ECM (Extra CMake Modules)
@@ -22,13 +23,21 @@ cmake --build .
 sudo cmake --install .
 ```
 
-This installs:
-- **Plugin**: `/usr/lib/plugins/kf6/kio/kio_afp.so`
-- **Metadata**: `/usr/lib/plugins/kf6/kio/afp.json`
-
 ## Runtime
 
 Once installed, Dolphin, Konqueror, and other KDE file managers will recognize `afp://` URLs.
+
+The *kio_afp* plugin will be automatically loaded when you try to access an AFP server,
+and will in turn spawn an *afpsld* daemon (from afpfs-ng) to handle the actual AFP communication in a separate process.
+
+### Credentials Management
+
+AFP usernames and passwords can be managed via KDE Wallet, and the plugin will prompt for credentials when needed.
+Use the KDE Wallet Manager to manage stored credentials for AFP servers,
+which will be securely accessed by the plugin when connecting to those servers.
+
+You can also specify credentials directly in the URL (e.g., `afp://user:pass@host/`),
+but using KDE Wallet is recommended for security.
 
 ## Test
 
