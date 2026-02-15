@@ -30,8 +30,8 @@
 
 extern "C" {
     #include <afp.h>
+    #include <afp_server.h>
     #include <afpsl.h>
-    #include <afpfsd.h>
 }
 
 // Read buffer size for get/put operations (64 KiB)
