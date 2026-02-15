@@ -515,8 +515,14 @@ KIO::UDSEntry AfpWorker::serverOrVolumeEntry(const QString &name)
     entry.fastInsert(KIO::UDSEntry::UDS_FILE_TYPE, S_IFDIR);
     entry.fastInsert(KIO::UDSEntry::UDS_ACCESS,
                      S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    entry.fastInsert(KIO::UDSEntry::UDS_USER, QStringLiteral("root"));
-    entry.fastInsert(KIO::UDSEntry::UDS_GROUP, QStringLiteral("root"));
+    struct passwd *pw = getpwuid(geteuid());
+    entry.fastInsert(KIO::UDSEntry::UDS_USER,
+                     pw ? QString::fromLocal8Bit(pw->pw_name)
+                        : QString::number(geteuid()));
+    struct group *gr = getgrgid(getegid());
+    entry.fastInsert(KIO::UDSEntry::UDS_GROUP,
+                     gr ? QString::fromLocal8Bit(gr->gr_name)
+                        : QString::number(getegid()));
     return entry;
 }
 
@@ -529,8 +535,14 @@ KIO::UDSEntry AfpWorker::volumeSummaryToUDS(const struct afp_volume_summary &vol
     entry.fastInsert(KIO::UDSEntry::UDS_FILE_TYPE, S_IFDIR);
     entry.fastInsert(KIO::UDSEntry::UDS_ACCESS,
                      S_IRWXU | S_IRWXG | S_IRWXO);
-    entry.fastInsert(KIO::UDSEntry::UDS_USER, QStringLiteral("root"));
-    entry.fastInsert(KIO::UDSEntry::UDS_GROUP, QStringLiteral("root"));
+    struct passwd *pw = getpwuid(geteuid());
+    entry.fastInsert(KIO::UDSEntry::UDS_USER,
+                     pw ? QString::fromLocal8Bit(pw->pw_name)
+                        : QString::number(geteuid()));
+    struct group *gr = getgrgid(getegid());
+    entry.fastInsert(KIO::UDSEntry::UDS_GROUP,
+                     gr ? QString::fromLocal8Bit(gr->gr_name)
+                        : QString::number(getegid()));
     return entry;
 }
 
