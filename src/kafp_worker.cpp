@@ -318,7 +318,7 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         // Sanity check: if success reported but no session ID, treat as daemon error
         if ((ret == AFP_SERVER_RESULT_OKAY || ret == AFP_SERVER_RESULT_ALREADY_CONNECTED) && !sid) {
             qWarning() << "kio-afp: connect returned success but sid is null, treating as error";
-            ret = AFP_SERVER_RESULT_AFPFSD_ERROR;
+            ret = AFP_SERVER_RESULT_DAEMON_ERROR;
         }
 
         if (ret == AFP_SERVER_RESULT_OKAY
@@ -514,7 +514,7 @@ KIO::UDSEntry AfpWorker::serverOrVolumeEntry(const QString &name)
     entry.fastInsert(KIO::UDSEntry::UDS_NAME, name.isEmpty() ? QStringLiteral(".") : name);
     entry.fastInsert(KIO::UDSEntry::UDS_FILE_TYPE, S_IFDIR);
     entry.fastInsert(KIO::UDSEntry::UDS_ACCESS,
-                     S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+                     S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
     entry.fastInsert(KIO::UDSEntry::UDS_USER, QStringLiteral("root"));
     entry.fastInsert(KIO::UDSEntry::UDS_GROUP, QStringLiteral("root"));
     return entry;
@@ -558,7 +558,7 @@ KIO::WorkerResult AfpWorker::mapAfpError(int ret, const QString &path)
                    path + separator + i18n("AFP server not found"));
     case AFP_SERVER_RESULT_TIMEDOUT:
         return KIO::WorkerResult::fail(KIO::ERR_SERVER_TIMEOUT, path);
-    case AFP_SERVER_RESULT_AFPFSD_ERROR:
+    case AFP_SERVER_RESULT_DAEMON_ERROR:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
                    path + separator + i18n("Cannot communicate with AFP server"));
     case AFP_SERVER_RESULT_NOTSUPPORTED:
@@ -591,7 +591,7 @@ KIO::WorkerResult AfpWorker::mapAfpConnectError(int ret, const QString &server)
     case AFP_SERVER_RESULT_TIMEDOUT:
         return KIO::WorkerResult::fail(KIO::ERR_SERVER_TIMEOUT,
                    server + separator + i18n("Connection timed out"));
-    case AFP_SERVER_RESULT_AFPFSD_ERROR:
+    case AFP_SERVER_RESULT_DAEMON_ERROR:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
                    server + separator + i18n("Cannot communicate with AFP server"));
     default:
@@ -618,9 +618,19 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
         return KIO::WorkerResult::pass();
     }
 
-    // Volume root: afp://server/volume — return a synthetic directory entry.
-    // The volume will be attached on demand when the user enters it.
+    // Volume root: afp://server/volume
+    // If the volume is already attached, do a real stat to get actual
+    // permissions (so KIO knows whether the directory is writable).
+    // Otherwise return a synthetic entry to avoid attaching just for stat.
     if (!pu.hasPath) {
+        if (m_volumeId && m_cachedVolume == pu.volume) {
+            struct stat st{};
+            int ret = afp_sl_stat(&m_volumeId, "/", &pu.afpUrl, &st);
+            if (ret == AFP_SERVER_RESULT_OKAY) {
+                statEntry(statToUDS(st, pu.volume));
+                return KIO::WorkerResult::pass();
+            }
+        }
         statEntry(serverOrVolumeEntry(pu.volume));
         return KIO::WorkerResult::pass();
     }
