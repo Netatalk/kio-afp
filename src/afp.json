@@ -1,25 +1,25 @@
 {
   "KPlugin": {
     "Name": "Apple Filing Protocol",
-    "Description": "KIO worker for AFP:// URLs",
+    "Description": "KIO worker for afp:// URLs",
     "Version": "0.1",
     "License": "GPL-2.0-or-later"
   },
   "KDE-KIO-Protocols": {
     "afp": {
       "protocol": "afp",
-      "input": "none",
+      "input": "stream",
       "output": "filesystem",
       "reading": true,
       "writing": true,
       "makedir": true,
       "deleting": true,
       "moving": true,
-      "linking": true,
-      "copyFromFile": true,
-      "copyToFile": true,
-      "opening": true,
-      "truncating": true,
+      "linking": false,
+      "copyFromFile": false,
+      "copyToFile": false,
+      "opening": false,
+      "truncating": false,
       "maxInstances": 20,
       "maxInstancesPerHost": 5,
       "listing": ["Name", "Type", "Size", "Date", "Access", "Owner", "Group"],
