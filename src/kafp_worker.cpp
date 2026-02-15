@@ -631,11 +631,12 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
     }
 
     // Volume root: afp://server/volume
-    // If the volume is already attached, do a real stat to get actual
-    // permissions (so KIO knows whether the directory is writable).
-    // Otherwise return a synthetic entry to avoid attaching just for stat.
+    // Attach and do a real stat so Dolphin sees actual permissions
+    // (needed for drag-and-drop writability checks on the listing view).
+    // Fall back to a synthetic entry if attachment fails.
     if (!pu.hasPath) {
-        if (m_volumeId && m_cachedVolume == pu.volume) {
+        auto r = ensureAttached(pu);
+        if (r.success()) {
             struct stat st{};
             int ret = afp_sl_stat(&m_volumeId, "/", &pu.afpUrl, &st);
             if (ret == AFP_SERVER_RESULT_OKAY) {
@@ -727,6 +728,23 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
     // Path for readdir: "/" for volume root, or the absolute subpath
     const char *dirPath = pu.hasPath ? pu.afpUrl.path : "/";
 
+    // Stat the directory itself and emit a "." entry so KDirLister has
+    // the root item immediately, even if a separate stat job is still
+    // queued behind this listDir in another worker process.  Without
+    // this, Dolphin's drag-and-drop writability check on the view
+    // background can fail because rootItem() is null.
+    {
+        struct stat dirSt{};
+        int dirRet = afp_sl_stat(&m_volumeId, dirPath, &pu.afpUrl, &dirSt);
+        if (dirRet == AFP_SERVER_RESULT_OKAY) {
+            KIO::UDSEntry dotEntry = statToUDS(dirSt, QStringLiteral("."));
+            if (S_ISDIR(dirSt.st_mode))
+                dotEntry.fastInsert(KIO::UDSEntry::UDS_MIME_TYPE,
+                                    QStringLiteral("inode/directory"));
+            listEntry(dotEntry);
+        }
+    }
+
     constexpr int BATCH = 64;
     int start = 0;
     bool done = false;
@@ -775,6 +793,10 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
             entry.fastInsert(KIO::UDSEntry::UDS_USER,
                              pw ? QString::fromLocal8Bit(pw->pw_name)
                                 : QString::number(fi.unixprivs.uid));
+            struct group *gr = getgrgid(fi.unixprivs.gid);
+            entry.fastInsert(KIO::UDSEntry::UDS_GROUP,
+                             gr ? QString::fromLocal8Bit(gr->gr_name)
+                                : QString::number(fi.unixprivs.gid));
 
             entries << entry;
         }
