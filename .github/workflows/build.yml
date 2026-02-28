@@ -1,0 +1,123 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+env:
+  AFPFS_NG_VERSION: "0.9.4"
+
+jobs:
+  build-debian:
+    name: Debian
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13.3
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            curl \
+            extra-cmake-modules \
+            g++ \
+            gettext \
+            libfuse3-dev \
+            libgcrypt20-dev \
+            libkf6i18n-dev \
+            libkf6kio-dev \
+            libkf6service-dev \
+            libreadline-dev \
+            meson \
+            ninja-build \
+            pkg-config \
+            qt6-base-dev \
+            xz-utils
+
+      - name: Build and install afpfs-ng
+        run: |
+          curl -LO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          tar xf afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          cd afpfs-ng-${{ env.AFPFS_NG_VERSION }}
+          meson setup build --prefix=/usr
+          meson compile -C build
+          meson install -C build
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Compile
+        run: cmake --build build
+
+      - name: Upload CMake logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cmake-logs-${{ github.job }}
+          path: |
+            build/CMakeFiles/CMakeError.log
+            build/CMakeFiles/CMakeOutput.log
+
+  build-fedora:
+    name: Fedora
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:42
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install build dependencies
+        run: |
+          dnf --setopt=install_weak_deps=False --assumeyes install \
+            cmake \
+            curl \
+            extra-cmake-modules \
+            fuse3-devel \
+            gcc-c++ \
+            gettext \
+            kf6-ki18n-devel \
+            kf6-kio-devel \
+            kf6-kservice-devel \
+            libgcrypt-devel \
+            meson \
+            ninja-build \
+            pkgconfig \
+            qt6-qtbase-devel \
+            readline-devel
+
+      - name: Build and install afpfs-ng
+        run: |
+          curl -LO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          tar xf afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          cd afpfs-ng-${{ env.AFPFS_NG_VERSION }}
+          meson setup build --prefix=/usr
+          meson compile -C build
+          meson install -C build
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Compile
+        run: cmake --build build
+
+      - name: Upload CMake logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cmake-logs-${{ github.job }}
+          path: |
+            build/CMakeFiles/CMakeError.log
+            build/CMakeFiles/CMakeOutput.log
