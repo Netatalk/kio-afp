@@ -49,7 +49,7 @@ jobs:
 
       - name: Build and install afpfs-ng
         run: |
-          curl -LO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          curl --proto '=https' --tlsv1.2 -fLO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
           tar xf afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
           cd afpfs-ng-${{ env.AFPFS_NG_VERSION }}
           meson setup build --prefix=/usr
@@ -100,7 +100,7 @@ jobs:
 
       - name: Build and install afpfs-ng
         run: |
-          curl -LO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          curl --proto '=https' --tlsv1.2 -fLO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
           tar xf afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
           cd afpfs-ng-${{ env.AFPFS_NG_VERSION }}
           meson setup build --prefix=/usr
@@ -121,3 +121,169 @@ jobs:
           path: |
             build/CMakeFiles/CMakeError.log
             build/CMakeFiles/CMakeOutput.log
+
+  test-debian:
+    name: Integration tests (Debian)
+    needs: build-debian
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13.3
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            curl \
+            dbus \
+            extra-cmake-modules \
+            g++ \
+            gettext \
+            kde-cli-tools \
+            libfuse3-dev \
+            libgcrypt20-dev \
+            libkf6i18n-dev \
+            libkf6kio-dev \
+            libkf6service-dev \
+            libreadline-dev \
+            meson \
+            netatalk \
+            ninja-build \
+            passwd \
+            pkg-config \
+            qt6-base-dev \
+            xz-utils
+
+      - name: Build and install afpfs-ng
+        run: |
+          curl --proto '=https' --tlsv1.2 -fLO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          tar xf afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          cd afpfs-ng-${{ env.AFPFS_NG_VERSION }}
+          meson setup build --prefix=/usr
+          meson compile -C build
+          meson install -C build
+
+      - name: Build and install kio-afp
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          cmake --install build
+
+      - name: Set up netatalk server
+        run: |
+          adduser --no-create-home --disabled-password --gecos '' testuser
+          echo "testuser:testpass" | chpasswd
+          mkdir -p /mnt/kio-afp-test
+          chmod 2755 /mnt/kio-afp-test
+          chown testuser:testuser /mnt/kio-afp-test
+          rm -f /var/lock/netatalk
+          cat << 'EOF' > /etc/netatalk/afp.conf
+          [Global]
+          log file = /var/log/afpd.log
+          log level = default:debug
+          uam list = uams_guest.so uams_dhx2.so
+
+          [kio-afp-test]
+          path = /mnt/kio-afp-test
+          valid users = testuser
+          EOF
+          netatalk
+          sleep 2
+
+      - name: Run integration tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: dbus-run-session -- bash test/test_kioclient.sh
+
+      - name: Upload netatalk logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: netatalk-logs-${{ github.job }}
+          path: /var/log/afpd.log
+
+  test-fedora:
+    name: Integration tests (Fedora)
+    needs: build-fedora
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:42
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install dependencies
+        run: |
+          dnf --setopt=install_weak_deps=False --assumeyes install \
+            cmake \
+            curl \
+            dbus-daemon \
+            extra-cmake-modules \
+            fuse3-devel \
+            gcc-c++ \
+            gettext \
+            kf6-ki18n-devel \
+            kf6-kio-devel \
+            kde-cli-tools \
+            kf6-kservice-devel \
+            libgcrypt-devel \
+            meson \
+            netatalk \
+            ninja-build \
+            pkgconfig \
+            procps-ng \
+            qt6-qtbase-devel \
+            readline-devel \
+            shadow-utils
+
+      - name: Build and install afpfs-ng
+        run: |
+          curl --proto '=https' --tlsv1.2 -fLO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          tar xf afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          cd afpfs-ng-${{ env.AFPFS_NG_VERSION }}
+          meson setup build --prefix=/usr
+          meson compile -C build
+          meson install -C build
+
+      - name: Build and install kio-afp
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          cmake --install build
+
+      - name: Set up netatalk server
+        run: |
+          useradd -M -s /sbin/nologin testuser
+          echo "testuser:testpass" | chpasswd
+          mkdir -p /mnt/kio-afp-test
+          chmod 2755 /mnt/kio-afp-test
+          chown testuser:testuser /mnt/kio-afp-test
+          rm -f /var/lock/netatalk
+          mkdir -p /run/lock/netatalk /run/netatalk /etc/netatalk
+          cat << 'EOF' > /etc/netatalk/afp.conf
+          [Global]
+          log file = /var/log/afpd.log
+          log level = default:debug
+          uam list = uams_guest.so uams_dhx2.so
+
+          [kio-afp-test]
+          path = /mnt/kio-afp-test
+          valid users = testuser
+          EOF
+          netatalk
+          sleep 2
+
+      - name: Run integration tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: dbus-run-session -- bash test/test_kioclient.sh
+
+      - name: Upload netatalk logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: netatalk-logs-${{ github.job }}
+          path: /var/log/afpd.log
