@@ -1,0 +1,88 @@
+name: Code Analysis
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+env:
+  AFPFS_NG_VERSION: "0.9.4"
+  BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory
+
+jobs:
+  static_analysis:
+    name: SonarQube Static Analysis
+    runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'push' && github.actor != 'dependabot[bot]' && github.actor != 'dependabot') || (github.event_name
+      == 'pull_request' && !github.event.pull_request.head.repo.fork && github.actor != 'dependabot[bot]' && github.actor
+      != 'dependabot')
+    container:
+      image: debian:13.3
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            curl \
+            extra-cmake-modules \
+            g++ \
+            gettext \
+            git \
+            libfuse3-dev \
+            libgcrypt20-dev \
+            libkf6i18n-dev \
+            libkf6kio-dev \
+            libkf6service-dev \
+            libreadline-dev \
+            meson \
+            ninja-build \
+            pkg-config \
+            qt6-base-dev \
+            unzip \
+            xz-utils
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Build and install afpfs-ng
+        run: |
+          curl --proto '=https' --tlsv1.2 -fLO https://github.com/Netatalk/afpfs-ng/releases/download/${{ env.AFPFS_NG_VERSION }}/afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          tar xf afpfs-ng-${{ env.AFPFS_NG_VERSION }}.tar.xz
+          cd afpfs-ng-${{ env.AFPFS_NG_VERSION }}
+          meson setup build --prefix=/usr
+          meson compile -C build
+          meson install -C build
+
+      - name: Install Build Wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+
+      - name: Run Build Wrapper
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Debug
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build
+
+      - name: Run SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            --define sonar.projectKey=Netatalk_kio-afp
+            --define sonar.organization=netatalk
+            --define sonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
