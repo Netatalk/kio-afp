@@ -58,8 +58,9 @@ TEST_CONTENT_LONG="kio-afp-test-$(printf '%04x%04x%04x%04x' $RANDOM $RANDOM $RAN
 TEST_CONTENT_SHORT="short-$(printf '%04x%04x' $RANDOM $RANDOM)"
 
 DOWNLOAD=$(mktemp)
+TMPDIR=$(mktemp -d)
 echo "== SETUP. Cleanup leftover test files"
-trap 'rm -f "$DOWNLOAD" /tmp/afp_put_test.txt /tmp/afp_small.txt /tmp/afp_verify.txt' EXIT
+trap 'rm -rf "$TMPDIR" "$DOWNLOAD" /tmp/afp_put_test.txt /tmp/afp_small.txt /tmp/afp_verify.txt' EXIT
 "$KIOCLIENT" remove "$AFP_URL/afp_put_test.txt" 2>/dev/null || true
 
 echo "== TEST 1. Upload a new file (put - create)"
@@ -91,7 +92,11 @@ else
 fi
 
 echo "== TEST 6. mkdir, rename, delete"
-run "mkdir"  "$KIOCLIENT" mkdir "$AFP_URL/testdir"
+if "$KIOCLIENT" mkdir "$AFP_URL/testdir" >/dev/null 2>&1; then
+    ok "mkdir"
+else
+    run "mkdir" "$KIOCLIENT" copy "$TMPDIR" "$AFP_URL/testdir"
+fi
 run "rename" "$KIOCLIENT" move "$AFP_URL/afp_put_test.txt" "$AFP_URL/testdir/moved.txt"
 run "delete file" "$KIOCLIENT" remove "$AFP_URL/testdir/moved.txt"
 run "delete dir"  "$KIOCLIENT" remove "$AFP_URL/testdir"
