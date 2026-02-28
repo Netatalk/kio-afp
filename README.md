@@ -12,7 +12,7 @@ however this is a complete rewrite and the two share no code.
 - KDE Frameworks 6.20+ (KIO, I18n)
 - ECM (Extra CMake Modules)
 - CMake 3.20+
-- afpfs-ng (libafpclient and libafpsl)
+- afpfs-ng 0.9.4 or later
 
 ## Build & Install
 
@@ -25,7 +25,7 @@ sudo cmake --install .
 
 ## Runtime
 
-Once installed, Dolphin, Konqueror, and other KDE file managers will recognize `afp://` URLs.
+Once installed, Dolphin, Konqueror, and other KIO clients will recognize `afp://` URLs.
 
 The *kio_afp* plugin will be automatically loaded when you try to access an AFP server,
 and will in turn spawn an *afpsld* daemon (from afpfs-ng) to handle the actual AFP communication in a separate process.
@@ -38,66 +38,6 @@ which will be securely accessed by the plugin when connecting to those servers.
 
 You can also specify credentials directly in the URL (e.g., `afp://user:pass@host/`),
 but using KDE Wallet is recommended for security.
-
-## Test
-
-Open Dolphin and try connecting to an AFP server:
-
-```shell
-dolphin afp://localhost
-```
-
-Check logs for debug output:
-
-```shell
-QT_LOGGING_RULES="kio.*=true" dolphin afp://localhost
-```
-
-### CLI Testing
-
-1. List volumes and directory
-
-```shell
-kioclient ls afp://localhost/
-kioclient ls afp://localhost/afp1/
-```
-
-2. Download a file (get)
-
-```shell
-kioclient copy afp://localhost/afp1/testfile.txt .
-cat /tmp/afp_get_test.txt
-```
-
-3. Upload a new file (put - create)
-
-```shell
-echo "test content" > /tmp/afp_put_test.txt
-kioclient copy /tmp/afp_put_test.txt afp://localhost/afp1/afp_put_test.txt
-```
-
-4. Upload overwrite (put - overwrite with smaller file)
-
-```shell
-echo "short" > /tmp/afp_small.txt
-kioclient copy --overwrite /tmp/afp_small.txt afp://localhost/afp1/afp_put_test.txt
-```
-
-5. Verify overwrite correctness
-
-```shell
-kioclient copy afp://localhost/afp1/afp_put_test.txt /tmp/afp_verify.txt
-cat /tmp/afp_verify.txt  # Should be "short" only
-```
-
-6. Test mkdir, rename, delete
-
-```shell
-kioclient mkdir afp://localhost/afp1/testdir
-kioclient move afp://localhost/afp1/afp_put_test.txt afp://localhost/afp1/testdir/moved.txt
-kioclient remove afp://localhost/afp1/testdir/moved.txt
-kioclient remove afp://localhost/afp1/testdir
-```
 
 ## Development Notes
 
