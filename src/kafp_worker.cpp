@@ -333,7 +333,7 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
             m_cachedUser = QByteArray(pu.afpUrl.username);
             m_cachedPass = QByteArray(pu.afpUrl.password);
 
-            if (std::strlen(loginmesg) > 0)
+            if (loginmesg[0] != '\0')
                 qCDebug(logAfp) << "kio-afp: login message:" << loginmesg;
 
             // Only cache when user went through the password dialog
