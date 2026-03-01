@@ -7,32 +7,32 @@
  * (at your option) any later version.
  */
 
-#include <KIO/WorkerBase>
 #include <KIO/AuthInfo>
+#include <KIO/WorkerBase>
 #include <KLocalizedString>
-#include <QUrl>
+#include <QCoreApplication>
 #include <QDebug>
 #include <QLoggingCategory>
-#include <QCoreApplication>
 #include <QMimeDatabase>
 #include <QThread>
+#include <QUrl>
 
+#include <QStandardPaths>
+#include <cerrno>
+#include <csignal>
+#include <cstring>
+#include <fcntl.h>
+#include <grp.h>
+#include <pwd.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <pwd.h>
-#include <grp.h>
-#include <cerrno>
-#include <fcntl.h>
-#include <cstring>
-#include <csignal>
 #include <unistd.h>
-#include <sys/file.h>
-#include <QStandardPaths>
 
 extern "C" {
-    #include <afp.h>
-    #include <afp_server.h>
-    #include <afpsl.h>
+#include <afp.h>
+#include <afp_server.h>
+#include <afpsl.h>
 }
 
 Q_LOGGING_CATEGORY(logAfp, "kio.afp")
@@ -44,7 +44,7 @@ struct ParsedUrl {
     struct afp_url afpUrl;
     QString server;
     QString volume;
-    QString path;       // path within volume (no leading slash)
+    QString path; // path within volume (no leading slash)
     bool hasVolume;
     bool hasPath;
 };
@@ -52,7 +52,9 @@ struct ParsedUrl {
 class AfpWorker : public KIO::WorkerBase {
 public:
     AfpWorker(const QByteArray &pool, const QByteArray &app)
-        : KIO::WorkerBase("afp", pool, app) {}
+        : KIO::WorkerBase("afp", pool, app)
+    {
+    }
 
     KIO::WorkerResult stat(const QUrl &url) override;
     KIO::WorkerResult listDir(const QUrl &url) override;
@@ -100,7 +102,7 @@ private:
 
 ParsedUrl AfpWorker::parseAfpUrl(const QUrl &url)
 {
-    ParsedUrl pu{};
+    ParsedUrl pu {};
     afp_default_url(&pu.afpUrl);
 
     pu.server = url.host();
@@ -248,25 +250,22 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
     }
 
     // Paths for cross-process coordination, stored under the user's runtime dir.
-    const QString runtimeDir =
-        QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    const QByteArray lockPath =
-        (runtimeDir + QStringLiteral("/kio-afp-connect.lock")).toLocal8Bit();
-    const QByteArray breakerPath =
-        (runtimeDir + QStringLiteral("/kio-afp-connect.breaker")).toLocal8Bit();
+    const QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    const QByteArray lockPath = (runtimeDir + QStringLiteral("/kio-afp-connect.lock")).toLocal8Bit();
+    const QByteArray breakerPath = (runtimeDir + QStringLiteral("/kio-afp-connect.breaker")).toLocal8Bit();
 
     // Circuit breaker: if a recent worker already failed to connect,
     // don't even try — the daemon is likely in a bad state.
     constexpr int BREAKER_COOLDOWN_SECS = 30;
-    struct ::stat breakerSt{};
+    struct ::stat breakerSt {};
     if (::stat(breakerPath.constData(), &breakerSt) == 0) {
         time_t age = time(nullptr) - breakerSt.st_mtime;
         if (age < BREAKER_COOLDOWN_SECS) {
             qWarning() << "kio-afp: connect circuit breaker active ("
                        << age << "s ago), failing fast";
             return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                       i18n("AFP daemon not responding (retry in %1 s)",
-                            BREAKER_COOLDOWN_SECS - static_cast<int>(age)));
+                                           i18n("AFP daemon not responding (retry in %1 s)",
+                                                BREAKER_COOLDOWN_SECS - static_cast<int>(age)));
         }
         // Breaker expired — remove it and try normally
         ::unlink(breakerPath.constData());
@@ -287,8 +286,8 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
             if (lockFd >= 0)
                 ::close(lockFd);
             return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                       i18n("AFP daemon not responding (retry in %1 s)",
-                            BREAKER_COOLDOWN_SECS - static_cast<int>(age)));
+                                           i18n("AFP daemon not responding (retry in %1 s)",
+                                                BREAKER_COOLDOWN_SECS - static_cast<int>(age)));
         }
         ::unlink(breakerPath.constData());
     }
@@ -312,13 +311,13 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         alarm(CONNECT_TIMEOUT_SECS);
 
         qCDebug(logAfp) << "kio-afp: connect server=" << pu.server
-                 << "user=" << pu.afpUrl.username;
+                        << "user=" << pu.afpUrl.username;
         int ret = afp_sl_connect(&pu.afpUrl, uamMask, &sid, loginmesg,
                                  &connectError);
 
         alarm(0); // cancel timeout — connect returned normally
         qCDebug(logAfp) << "kio-afp: connect returned" << ret
-                 << "sid=" << sid << "err=" << connectError;
+                        << "sid=" << sid << "err=" << connectError;
 
         // Sanity check: if success reported but no session ID, treat as daemon error
         if ((ret == AFP_SERVER_RESULT_OKAY || ret == AFP_SERVER_RESULT_ALREADY_CONNECTED) && !sid) {
@@ -362,7 +361,7 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
             // Auth failed — re-prompt with error message
             info.setModified(false);
             int errCode = openPasswordDialog(info,
-                i18n("Authentication failed. Please try again."));
+                                             i18n("Authentication failed. Please try again."));
             if (errCode != 0)
                 return KIO::WorkerResult::fail(KIO::ERR_USER_CANCELED, pu.server);
 
@@ -412,7 +411,7 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
 {
     if (!pu.hasVolume)
         return KIO::WorkerResult::fail(KIO::ERR_DOES_NOT_EXIST,
-                   i18n("No volume specified in URL"));
+                                       i18n("No volume specified in URL"));
 
     auto r = ensureConnected(pu);
     if (!r.success())
@@ -423,7 +422,7 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
     // attachments, and detaching with a mismatched URL corrupts state.
     if (m_volumeId && m_cachedVolume != pu.volume) {
         qCDebug(logAfp) << "kio-afp: switching from volume" << m_cachedVolume
-                 << "to" << pu.volume;
+                        << "to" << pu.volume;
         m_volumeId = nullptr;
         m_cachedVolume.clear();
     }
@@ -461,7 +460,7 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
             vid = nullptr;
             ret = afp_sl_attach(&pu.afpUrl, 0, &vid);
             qCDebug(logAfp) << "kio-afp: re-attach after reset returned" << ret
-                     << "vid=" << vid;
+                            << "vid=" << vid;
 
             // Another worker may have re-attached between our
             // disconnect and re-attach; try getvolid once more.
@@ -469,7 +468,7 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
                 || ret == AFP_SERVER_RESULT_ALREADY_ATTACHED) {
                 ret = afp_sl_getvolid(&pu.afpUrl, &vid);
                 qCDebug(logAfp) << "kio-afp: getvolid retry returned" << ret
-                           << "vid=" << vid;
+                                << "vid=" << vid;
             }
 
             if (ret != AFP_SERVER_RESULT_OKAY)
@@ -599,29 +598,29 @@ KIO::WorkerResult AfpWorker::mapAfpError(int ret, const QString &path)
         return KIO::WorkerResult::fail(KIO::ERR_FILE_ALREADY_EXIST, path);
     case AFP_SERVER_RESULT_NOVOLUME:
         return KIO::WorkerResult::fail(KIO::ERR_DOES_NOT_EXIST,
-                   i18n("Volume not found: %1", path));
+                                       i18n("Volume not found: %1", path));
     case AFP_SERVER_RESULT_NOSERVER:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   path + separator + i18n("AFP server not found"));
+                                       path + separator + i18n("AFP server not found"));
     case AFP_SERVER_RESULT_TIMEDOUT:
         return KIO::WorkerResult::fail(KIO::ERR_SERVER_TIMEOUT, path);
     case AFP_SERVER_RESULT_DAEMON_ERROR:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   path + separator + i18n("Cannot communicate with AFP server"));
+                                       path + separator + i18n("Cannot communicate with AFP server"));
     case AFP_SERVER_RESULT_NOTSUPPORTED:
         return KIO::WorkerResult::fail(KIO::ERR_UNSUPPORTED_ACTION, path);
     case AFP_SERVER_RESULT_NOTCONNECTED:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   path + separator + i18n("Not connected to AFP server"));
+                                       path + separator + i18n("Not connected to AFP server"));
     case AFP_SERVER_RESULT_NOTATTACHED:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   path + separator + i18n("Not attached to volume"));
+                                       path + separator + i18n("Not attached to volume"));
     case AFP_SERVER_RESULT_NOAUTHENT:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_AUTHENTICATE,
-                   i18n("Authentication with AFP server failed"));
+                                       i18n("Authentication with AFP server failed"));
     default:
         return KIO::WorkerResult::fail(KIO::ERR_INTERNAL,
-                   i18n("AFP error %1", ret));
+                                       i18n("AFP error %1", ret));
     }
 }
 
@@ -631,19 +630,19 @@ KIO::WorkerResult AfpWorker::mapAfpConnectError(int ret, const QString &server)
     switch (ret) {
     case AFP_SERVER_RESULT_NOAUTHENT:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_AUTHENTICATE,
-                   server + separator + i18n("Authentication with AFP server failed"));
+                                       server + separator + i18n("Authentication with AFP server failed"));
     case AFP_SERVER_RESULT_NOSERVER:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   server + separator + i18n("Could not find AFP server"));
+                                       server + separator + i18n("Could not find AFP server"));
     case AFP_SERVER_RESULT_TIMEDOUT:
         return KIO::WorkerResult::fail(KIO::ERR_SERVER_TIMEOUT,
-                   server + separator + i18n("Connection timed out"));
+                                       server + separator + i18n("Connection timed out"));
     case AFP_SERVER_RESULT_DAEMON_ERROR:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   server + separator + i18n("Cannot communicate with AFP server"));
+                                       server + separator + i18n("Cannot communicate with AFP server"));
     default:
         return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
-                   server + separator + i18n("AFP connection error %1", ret));
+                                       server + separator + i18n("AFP connection error %1", ret));
     }
 }
 
@@ -672,7 +671,7 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
     if (!pu.hasPath) {
         auto r = ensureAttached(pu);
         if (r.success()) {
-            struct stat st{};
+            struct stat st {};
             int ret = afp_sl_stat(&m_volumeId, "/", &pu.afpUrl, &st);
             if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
                 invalidateSessionState("volume-root stat failed");
@@ -694,7 +693,7 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
     if (!r.success())
         return r;
 
-    struct stat st{};
+    struct stat st {};
     int ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("stat failed");
@@ -743,7 +742,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
 
         int ret = afp_sl_getvols(&pu.afpUrl, 0, MAX_VOLS, &numVols, vols);
         qCDebug(logAfp) << "kio-afp: getvols returned" << ret
-                 << "numVols=" << numVols;
+                        << "numVols=" << numVols;
         if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
             invalidateSessionState("getvols failed");
             auto rr = ensureConnected(pu);
@@ -763,7 +762,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
             numVols = 0;
             ret = afp_sl_getvols(&pu.afpUrl, 0, MAX_VOLS, &numVols, vols);
             qCDebug(logAfp) << "kio-afp: getvols retry returned" << ret
-                     << "numVols=" << numVols;
+                            << "numVols=" << numVols;
         }
 
         if (ret != AFP_SERVER_RESULT_OKAY)
@@ -792,7 +791,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
     // this, Dolphin's drag-and-drop writability check on the view
     // background can fail because rootItem() is null.
     {
-        struct stat dirSt{};
+        struct stat dirSt {};
         int dirRet = afp_sl_stat(&m_volumeId, dirPath, &pu.afpUrl, &dirSt);
         if (dirRet == AFP_SERVER_RESULT_OKAY) {
             KIO::UDSEntry dotEntry = statToUDS(dirSt, QStringLiteral("."));
@@ -813,14 +812,14 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
         int eod = 0;
 
         qCDebug(logAfp) << "kio-afp: readdir path=" << dirPath
-                 << "start=" << start << "vid=" << m_volumeId;
+                        << "start=" << start << "vid=" << m_volumeId;
         int ret = afp_sl_readdir(&m_volumeId, dirPath, &pu.afpUrl,
                                  start, BATCH, &numFiles, &fpb, &eod);
         qCDebug(logAfp) << "kio-afp: readdir returned" << ret
-                 << "numFiles=" << numFiles << "eod=" << eod;
+                        << "numFiles=" << numFiles << "eod=" << eod;
         if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
             qCDebug(logAfp) << "kio-afp: readdir failed with recoverable error,"
-                     << "reconnecting and retrying";
+                            << "reconnecting and retrying";
             invalidateSessionState("readdir failed");
             auto rr = ensureAttached(pu);
             if (!rr.success())
@@ -831,7 +830,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
             ret = afp_sl_readdir(&m_volumeId, dirPath, &pu.afpUrl,
                                  start, BATCH, &numFiles, &fpb, &eod);
             qCDebug(logAfp) << "kio-afp: readdir retry returned" << ret
-                     << "numFiles=" << numFiles << "eod=" << eod;
+                            << "numFiles=" << numFiles << "eod=" << eod;
         }
         if (ret != AFP_SERVER_RESULT_OKAY) {
             return mapAfpError(ret, pu.hasPath ? pu.path : pu.volume);
@@ -890,14 +889,14 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
     ParsedUrl pu = parseAfpUrl(url);
     if (!pu.hasPath)
         return KIO::WorkerResult::fail(KIO::ERR_IS_DIRECTORY,
-                   pu.hasVolume ? pu.volume : pu.server);
+                                       pu.hasVolume ? pu.volume : pu.server);
 
     auto r = ensureAttached(pu);
     if (!r.success())
         return r;
 
     // Stat the file to get size
-    struct stat st{};
+    struct stat st {};
     int ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("get stat failed");
@@ -953,7 +952,7 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
                           offset, READ_CHUNK, &received, &eofFlag, buf);
         if (ret != AFP_SERVER_RESULT_OKAY) {
             qCDebug(logAfp) << "kio-afp: get read failed at offset" << offset
-                     << "ret=" << ret;
+                            << "ret=" << ret;
             afp_sl_close(&m_volumeId, fileId);
             return mapAfpError(ret, pu.path);
         }
@@ -969,26 +968,26 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
 
     afp_sl_close(&m_volumeId, fileId);
     qCDebug(logAfp) << "kio-afp: get complete, read" << offset << "bytes";
-    data(QByteArray());  // signal end of data
+    data(QByteArray()); // signal end of data
     return KIO::WorkerResult::pass();
 }
 
 KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags flags)
 {
     qCDebug(logAfp) << "kio-afp: put()" << url << "permissions=" << permissions
-             << "flags=" << static_cast<int>(flags);
+                    << "flags=" << static_cast<int>(flags);
 
     ParsedUrl pu = parseAfpUrl(url);
     if (!pu.hasPath)
         return KIO::WorkerResult::fail(KIO::ERR_ACCESS_DENIED,
-                   i18n("Cannot write to volume root"));
+                                       i18n("Cannot write to volume root"));
 
     auto r = ensureAttached(pu);
     if (!r.success())
         return r;
 
     // Check if file exists
-    struct stat st{};
+    struct stat st {};
     int ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("put stat failed");
@@ -1063,7 +1062,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
             qCDebug(logAfp) << "kio-afp: put readData failed:" << readResult;
             afp_sl_close(&m_volumeId, fileId);
             return KIO::WorkerResult::fail(KIO::ERR_CANNOT_WRITE,
-                       i18n("Error reading data from client"));
+                                           i18n("Error reading data from client"));
         }
         if (buf.isEmpty())
             break;
@@ -1074,7 +1073,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
                            &written, buf.constData());
         if (ret != AFP_SERVER_RESULT_OKAY) {
             qCDebug(logAfp) << "kio-afp: put write failed at offset" << offset
-                     << "ret=" << ret;
+                            << "ret=" << ret;
             afp_sl_close(&m_volumeId, fileId);
             return mapAfpError(ret, pu.path);
         }
@@ -1102,7 +1101,7 @@ KIO::WorkerResult AfpWorker::mkdir(const QUrl &url, int permissions)
     ParsedUrl pu = parseAfpUrl(url);
     if (!pu.hasPath)
         return KIO::WorkerResult::fail(KIO::ERR_ACCESS_DENIED,
-                   i18n("Cannot create directory at volume level"));
+                                       i18n("Cannot create directory at volume level"));
 
     auto r = ensureAttached(pu);
     if (!r.success())
@@ -1130,7 +1129,7 @@ KIO::WorkerResult AfpWorker::del(const QUrl &url, bool isFile)
     ParsedUrl pu = parseAfpUrl(url);
     if (!pu.hasPath)
         return KIO::WorkerResult::fail(KIO::ERR_ACCESS_DENIED,
-                   i18n("Cannot delete volume root"));
+                                       i18n("Cannot delete volume root"));
 
     auto r = ensureAttached(pu);
     if (!r.success())
@@ -1167,11 +1166,11 @@ KIO::WorkerResult AfpWorker::rename(const QUrl &src, const QUrl &dest, KIO::JobF
 
     if (!puSrc.hasPath || !puDest.hasPath)
         return KIO::WorkerResult::fail(KIO::ERR_UNSUPPORTED_ACTION,
-                   i18n("Cannot rename volume roots"));
+                                       i18n("Cannot rename volume roots"));
 
     if (puSrc.server != puDest.server || puSrc.volume != puDest.volume)
         return KIO::WorkerResult::fail(KIO::ERR_UNSUPPORTED_ACTION,
-                   i18n("Cannot rename across different volumes"));
+                                       i18n("Cannot rename across different volumes"));
 
     auto r = ensureAttached(puSrc);
     if (!r.success())
@@ -1179,7 +1178,7 @@ KIO::WorkerResult AfpWorker::rename(const QUrl &src, const QUrl &dest, KIO::JobF
 
     // Check if destination exists when Overwrite is not set
     if (!(flags & KIO::Overwrite)) {
-        struct stat st{};
+        struct stat st {};
         int check = afp_sl_stat(&m_volumeId, puDest.afpUrl.path, &puDest.afpUrl, &st);
         if (check == AFP_SERVER_RESULT_OKAY)
             return KIO::WorkerResult::fail(KIO::ERR_FILE_ALREADY_EXIST, puDest.path);
@@ -1208,7 +1207,7 @@ KIO::WorkerResult AfpWorker::chmod(const QUrl &url, int permissions)
     ParsedUrl pu = parseAfpUrl(url);
     if (!pu.hasPath)
         return KIO::WorkerResult::fail(KIO::ERR_UNSUPPORTED_ACTION,
-                   i18n("Cannot chmod volume root"));
+                                       i18n("Cannot chmod volume root"));
 
     auto r = ensureAttached(pu);
     if (!r.success())
@@ -1239,7 +1238,7 @@ KIO::WorkerResult AfpWorker::fileSystemFreeSpace(const QUrl &url)
     if (!r.success())
         return r;
 
-    struct statvfs svfs{};
+    struct statvfs svfs {};
     int ret = afp_sl_statfs(&m_volumeId, "/", &pu.afpUrl, &svfs);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("statfs failed");
@@ -1253,13 +1252,11 @@ KIO::WorkerResult AfpWorker::fileSystemFreeSpace(const QUrl &url)
         return mapAfpError(ret, pu.volume);
     }
 
-    const KIO::filesize_t total =
-        static_cast<KIO::filesize_t>(svfs.f_blocks) * svfs.f_frsize;
-    const KIO::filesize_t available =
-        static_cast<KIO::filesize_t>(svfs.f_bavail) * svfs.f_frsize;
+    const KIO::filesize_t total = static_cast<KIO::filesize_t>(svfs.f_blocks) * svfs.f_frsize;
+    const KIO::filesize_t available = static_cast<KIO::filesize_t>(svfs.f_bavail) * svfs.f_frsize;
 
     qCDebug(logAfp) << "kio-afp: fileSystemFreeSpace total=" << total
-             << "available=" << available;
+                    << "available=" << available;
 
     setMetaData(QStringLiteral("total"), QString::number(total));
     setMetaData(QStringLiteral("available"), QString::number(available));
@@ -1271,7 +1268,8 @@ KIO::WorkerResult AfpWorker::fileSystemFreeSpace(const QUrl &url)
 // ---------------------------------------------------------------------------
 
 extern "C" {
-int Q_DECL_EXPORT kdemain(int argc, char **argv) {
+int Q_DECL_EXPORT kdemain(int argc, char **argv)
+{
     QCoreApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("kio-afp"));
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
@@ -1286,6 +1284,7 @@ int Q_DECL_EXPORT kdemain(int argc, char **argv) {
 }
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     return kdemain(argc, argv);
 }
