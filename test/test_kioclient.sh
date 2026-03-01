@@ -36,8 +36,19 @@ AFP_URL="${AFP_SERVER}/${AFP_VOLUME}"
 PASS=0
 FAIL=0
 
-ok() { echo "PASS: $1"; ((PASS++)); }
-fail() { echo "FAIL: $1"; ((FAIL++)); }
+ok() {
+    local desc="$1"
+    echo "PASS: $desc"
+    ((PASS++))
+    return 0
+}
+
+fail() {
+    local desc="$1"
+    echo "FAIL: $desc"
+    ((FAIL++))
+    return 0
+}
 
 run() {
     local desc="$1"; shift
@@ -52,6 +63,7 @@ run() {
     else
         fail "$desc"
     fi
+    return 0
 }
 
 TEST_CONTENT_LONG="kio-afp-test-$(printf '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM)"
