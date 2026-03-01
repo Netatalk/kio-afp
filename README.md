@@ -43,8 +43,10 @@ but using KDE Wallet is recommended for security.
 
 ### Code Style
 
-- The project uses a `.clang-format` file with WebKit style as the base, with some customizations.
-- Run `clang-format` on modified files before committing to ensure consistent code style.
+clang-format v20 is used for code formatting, with the WebKit style as the base and some customizations.
+
+- The project uses a `.clang-format` file at the root to define the formatting rules.
+- Run clang-format on modified files before committing to ensure consistent code style.
 
 ### Internationalization (i18n)
 
