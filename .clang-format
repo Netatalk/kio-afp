@@ -4,3 +4,4 @@ BasedOnStyle: WebKit
 Language: Cpp
 AlignAfterOpenBracket: Align
 PointerAlignment: Right
+SpaceBeforeCpp11BracedList: true
