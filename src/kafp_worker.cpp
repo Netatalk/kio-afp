@@ -87,13 +87,13 @@ private:
     bool isRecoverableSessionError(int ret) const;
 
     // --- UDSEntry helpers ---
-    KIO::UDSEntry statToUDS(const struct stat &st, const QString &name);
-    KIO::UDSEntry serverOrVolumeEntry(const QString &name);
-    KIO::UDSEntry volumeSummaryToUDS(const struct afp_volume_summary &vol);
+    KIO::UDSEntry statToUDS(const struct stat &st, const QString &name) const;
+    KIO::UDSEntry serverOrVolumeEntry(const QString &name) const;
+    KIO::UDSEntry volumeSummaryToUDS(const struct afp_volume_summary &vol) const;
 
     // --- Error mapping ---
-    KIO::WorkerResult mapAfpError(int ret, const QString &path);
-    KIO::WorkerResult mapAfpConnectError(int ret, const QString &server);
+    KIO::WorkerResult mapAfpError(int ret, const QString &path) const;
+    KIO::WorkerResult mapAfpConnectError(int ret, const QString &server) const;
 };
 
 // ---------------------------------------------------------------------------
@@ -510,7 +510,7 @@ bool AfpWorker::isRecoverableSessionError(int ret) const
 // UDS entry helpers
 // ---------------------------------------------------------------------------
 
-KIO::UDSEntry AfpWorker::statToUDS(const struct stat &st, const QString &name)
+KIO::UDSEntry AfpWorker::statToUDS(const struct stat &st, const QString &name) const
 {
     KIO::UDSEntry entry;
     entry.reserve(8);
@@ -534,7 +534,7 @@ KIO::UDSEntry AfpWorker::statToUDS(const struct stat &st, const QString &name)
     return entry;
 }
 
-KIO::UDSEntry AfpWorker::serverOrVolumeEntry(const QString &name)
+KIO::UDSEntry AfpWorker::serverOrVolumeEntry(const QString &name) const
 {
     KIO::UDSEntry entry;
     entry.reserve(5);
@@ -553,7 +553,7 @@ KIO::UDSEntry AfpWorker::serverOrVolumeEntry(const QString &name)
     return entry;
 }
 
-KIO::UDSEntry AfpWorker::volumeSummaryToUDS(const struct afp_volume_summary &vol)
+KIO::UDSEntry AfpWorker::volumeSummaryToUDS(const struct afp_volume_summary &vol) const
 {
     KIO::UDSEntry entry;
     entry.reserve(5);
@@ -577,7 +577,7 @@ KIO::UDSEntry AfpWorker::volumeSummaryToUDS(const struct afp_volume_summary &vol
 // Error mapping
 // ---------------------------------------------------------------------------
 
-KIO::WorkerResult AfpWorker::mapAfpError(int ret, const QString &path)
+KIO::WorkerResult AfpWorker::mapAfpError(int ret, const QString &path) const
 {
     const QString separator = QStringLiteral("\n");
     switch (ret) {
@@ -617,7 +617,7 @@ KIO::WorkerResult AfpWorker::mapAfpError(int ret, const QString &path)
     }
 }
 
-KIO::WorkerResult AfpWorker::mapAfpConnectError(int ret, const QString &server)
+KIO::WorkerResult AfpWorker::mapAfpConnectError(int ret, const QString &server) const
 {
     const QString separator = QStringLiteral("\n");
     switch (ret) {
