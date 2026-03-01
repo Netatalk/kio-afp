@@ -1,0 +1,6 @@
+kio-afp 0.1 (2026-03-01)
+========================
+
+* initial release, considered complete and fully functional,
+  however not heavily tested yet, so expect some rough edges
+* bug reports and feature requests very welcome
