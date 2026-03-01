@@ -7,15 +7,16 @@
  * (at your option) any later version.
  */
 
-#include <QObject>
 #include <KPluginFactory>
+#include <QObject>
 
-class AfpMeta : public QObject
-{
+class AfpMeta : public QObject {
     Q_OBJECT
 public:
     AfpMeta(QObject *parent, const QVariantList &)
-        : QObject(parent) {}
+        : QObject(parent)
+    {
+    }
 };
 
 K_PLUGIN_FACTORY_WITH_JSON(AfpMetaFactory, "afp.json", registerPlugin<AfpMeta>();)
