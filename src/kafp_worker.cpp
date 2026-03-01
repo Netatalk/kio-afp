@@ -77,7 +77,7 @@ private:
     QByteArray m_cachedPass;
 
     // --- URL parsing ---
-    ParsedUrl parseAfpUrl(const QUrl &url);
+    ParsedUrl parseAfpUrl(const QUrl &url) const;
 
     // --- Connection lifecycle ---
     KIO::WorkerResult ensureConnSetup();
@@ -100,7 +100,7 @@ private:
 // URL parsing
 // ---------------------------------------------------------------------------
 
-ParsedUrl AfpWorker::parseAfpUrl(const QUrl &url)
+ParsedUrl AfpWorker::parseAfpUrl(const QUrl &url) const
 {
     ParsedUrl pu {};
     afp_default_url(&pu.afpUrl);
@@ -114,19 +114,17 @@ ParsedUrl AfpWorker::parseAfpUrl(const QUrl &url)
         pu.afpUrl.port = url.port();
 
     // Credentials from URL
-    QByteArray user = url.userName().toUtf8();
-    QByteArray pass = url.password().toUtf8();
-    if (!user.isEmpty())
+    if (QByteArray user = url.userName().toUtf8(); !user.isEmpty())
         std::strncpy(pu.afpUrl.username, user.constData(),
                      sizeof(pu.afpUrl.username) - 1);
-    if (!pass.isEmpty())
+    if (QByteArray pass = url.password().toUtf8(); !pass.isEmpty())
         std::strncpy(pu.afpUrl.password, pass.constData(),
                      sizeof(pu.afpUrl.password) - 1);
 
     // Split path: first component is volume, rest is path within volume
     // url.path() is e.g. "/VolumeName/some/dir/file"
-    const QStringList parts = url.path().split(QLatin1Char('/'), Qt::SkipEmptyParts);
-    if (!parts.isEmpty()) {
+    if (const QStringList parts = url.path().split(QLatin1Char('/'), Qt::SkipEmptyParts);
+        !parts.isEmpty()) {
         pu.volume = parts.at(0);
         pu.hasVolume = true;
         QByteArray volBytes = pu.volume.toUtf8();
@@ -141,8 +139,7 @@ ParsedUrl AfpWorker::parseAfpUrl(const QUrl &url)
     }
 
     // Set the path field in afp_url (absolute path within volume)
-    QByteArray pathBytes = pu.path.toUtf8();
-    if (!pathBytes.isEmpty()) {
+    if (QByteArray pathBytes = pu.path.toUtf8(); !pathBytes.isEmpty()) {
         QByteArray absPath = QByteArray("/") + pathBytes;
         std::strncpy(pu.afpUrl.path, absPath.constData(),
                      sizeof(pu.afpUrl.path) - 1);
@@ -172,8 +169,7 @@ KIO::WorkerResult AfpWorker::ensureConnSetup()
 
 KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
 {
-    auto r = ensureConnSetup();
-    if (!r.success())
+    if (auto r = ensureConnSetup(); !r.success())
         return r;
 
     // If we're already connected to a different server, disconnect first
@@ -236,8 +232,7 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
     // No credentials from URL or cache — prompt before connecting
     if (!haveCreds) {
         info.setModified(false);
-        int errCode = openPasswordDialog(info);
-        if (errCode != 0)
+        if (int errCode = openPasswordDialog(info); errCode != 0)
             return KIO::WorkerResult::fail(KIO::ERR_USER_CANCELED, pu.server);
 
         QByteArray u = info.username.toUtf8();
@@ -259,8 +254,8 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
     constexpr int BREAKER_COOLDOWN_SECS = 30;
     struct ::stat breakerSt {};
     if (::stat(breakerPath.constData(), &breakerSt) == 0) {
-        time_t age = time(nullptr) - breakerSt.st_mtime;
-        if (age < BREAKER_COOLDOWN_SECS) {
+        if (time_t age = time(nullptr) - breakerSt.st_mtime;
+            age < BREAKER_COOLDOWN_SECS) {
             qWarning() << "kio-afp: connect circuit breaker active ("
                        << age << "s ago), failing fast";
             return KIO::WorkerResult::fail(KIO::ERR_CANNOT_CONNECT,
@@ -280,8 +275,8 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
     // After acquiring the lock, check the breaker again — the worker ahead
     // of us may have tripped it while we were waiting.
     if (::stat(breakerPath.constData(), &breakerSt) == 0) {
-        time_t age = time(nullptr) - breakerSt.st_mtime;
-        if (age < BREAKER_COOLDOWN_SECS) {
+        if (time_t age = time(nullptr) - breakerSt.st_mtime;
+            age < BREAKER_COOLDOWN_SECS) {
             qWarning() << "kio-afp: connect circuit breaker tripped while waiting";
             if (lockFd >= 0)
                 ::close(lockFd);
@@ -360,9 +355,9 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
 
             // Auth failed — re-prompt with error message
             info.setModified(false);
-            int errCode = openPasswordDialog(info,
-                                             i18n("Authentication failed. Please try again."));
-            if (errCode != 0)
+            if (int errCode = openPasswordDialog(
+                    info, i18n("Authentication failed. Please try again."));
+                errCode != 0)
                 return KIO::WorkerResult::fail(KIO::ERR_USER_CANCELED, pu.server);
 
             QByteArray u = info.username.toUtf8();
@@ -397,8 +392,8 @@ KIO::WorkerResult AfpWorker::ensureConnected(ParsedUrl &pu)
         // workers fail fast instead of also hammering the daemon.
         qWarning() << "kio-afp: tripping connect circuit breaker for"
                    << BREAKER_COOLDOWN_SECS << "s";
-        int bfd = ::open(breakerPath.constData(), O_CREAT | O_WRONLY, 0600);
-        if (bfd >= 0)
+        if (int bfd = ::open(breakerPath.constData(), O_CREAT | O_WRONLY, 0600);
+            bfd >= 0)
             ::close(bfd);
 
         if (lockFd >= 0)
@@ -413,8 +408,7 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
         return KIO::WorkerResult::fail(KIO::ERR_DOES_NOT_EXIST,
                                        i18n("No volume specified in URL"));
 
-    auto r = ensureConnected(pu);
-    if (!r.success())
+    if (auto r = ensureConnected(pu); !r.success())
         return r;
 
     // If switching to a different volume, clear our local cache.
@@ -453,8 +447,7 @@ KIO::WorkerResult AfpWorker::ensureAttached(ParsedUrl &pu)
             m_serverId = nullptr;
             m_cachedServer.clear();
 
-            auto rc = ensureConnected(pu);
-            if (!rc.success())
+            if (auto rc = ensureConnected(pu); !rc.success())
                 return rc;
 
             vid = nullptr;
@@ -669,14 +662,12 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
     // (needed for drag-and-drop writability checks on the listing view).
     // Fall back to a synthetic entry if attachment fails.
     if (!pu.hasPath) {
-        auto r = ensureAttached(pu);
-        if (r.success()) {
+        if (auto r = ensureAttached(pu); r.success()) {
             struct stat st {};
             int ret = afp_sl_stat(&m_volumeId, "/", &pu.afpUrl, &st);
             if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
                 invalidateSessionState("volume-root stat failed");
-                auto rr = ensureAttached(pu);
-                if (rr.success())
+                if (auto rr = ensureAttached(pu); rr.success())
                     ret = afp_sl_stat(&m_volumeId, "/", &pu.afpUrl, &st);
             }
             if (ret == AFP_SERVER_RESULT_OKAY) {
@@ -689,16 +680,14 @@ KIO::WorkerResult AfpWorker::stat(const QUrl &url)
     }
 
     // File/dir within volume
-    auto r = ensureAttached(pu);
-    if (!r.success())
+    if (auto r = ensureAttached(pu); !r.success())
         return r;
 
     struct stat st {};
     int ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("stat failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     }
@@ -732,8 +721,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
 
     // Server root — list volumes
     if (!pu.hasVolume) {
-        auto r = ensureConnected(pu);
-        if (!r.success())
+        if (auto r = ensureConnected(pu); !r.success())
             return r;
 
         constexpr unsigned int MAX_VOLS = 64;
@@ -745,8 +733,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
                         << "numVols=" << numVols;
         if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
             invalidateSessionState("getvols failed");
-            auto rr = ensureConnected(pu);
-            if (!rr.success())
+            if (auto rr = ensureConnected(pu); !rr.success())
                 return rr;
             numVols = 0;
             ret = afp_sl_getvols(&pu.afpUrl, 0, MAX_VOLS, &numVols, vols);
@@ -778,8 +765,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
     }
 
     // Directory within a volume (or volume root)
-    auto r = ensureAttached(pu);
-    if (!r.success())
+    if (auto r = ensureAttached(pu); !r.success())
         return r;
 
     // Path for readdir: "/" for volume root, or the absolute subpath
@@ -792,8 +778,8 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
     // background can fail because rootItem() is null.
     {
         struct stat dirSt {};
-        int dirRet = afp_sl_stat(&m_volumeId, dirPath, &pu.afpUrl, &dirSt);
-        if (dirRet == AFP_SERVER_RESULT_OKAY) {
+        if (int dirRet = afp_sl_stat(&m_volumeId, dirPath, &pu.afpUrl, &dirSt);
+            dirRet == AFP_SERVER_RESULT_OKAY) {
             KIO::UDSEntry dotEntry = statToUDS(dirSt, QStringLiteral("."));
             if (S_ISDIR(dirSt.st_mode))
                 dotEntry.fastInsert(KIO::UDSEntry::UDS_MIME_TYPE,
@@ -821,8 +807,7 @@ KIO::WorkerResult AfpWorker::listDir(const QUrl &url)
             qCDebug(logAfp) << "kio-afp: readdir failed with recoverable error,"
                             << "reconnecting and retrying";
             invalidateSessionState("readdir failed");
-            auto rr = ensureAttached(pu);
-            if (!rr.success())
+            if (auto rr = ensureAttached(pu); !rr.success())
                 return rr;
             numFiles = 0;
             fpb = nullptr;
@@ -891,8 +876,7 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
         return KIO::WorkerResult::fail(KIO::ERR_IS_DIRECTORY,
                                        pu.hasVolume ? pu.volume : pu.server);
 
-    auto r = ensureAttached(pu);
-    if (!r.success())
+    if (auto r = ensureAttached(pu); !r.success())
         return r;
 
     // Stat the file to get size
@@ -900,8 +884,7 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
     int ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("get stat failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     }
@@ -929,8 +912,7 @@ KIO::WorkerResult AfpWorker::get(const QUrl &url)
     ret = afp_sl_open(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &fileId, O_RDONLY);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("get open failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         ret = afp_sl_open(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &fileId, O_RDONLY);
     }
@@ -982,8 +964,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
         return KIO::WorkerResult::fail(KIO::ERR_ACCESS_DENIED,
                                        i18n("Cannot write to volume root"));
 
-    auto r = ensureAttached(pu);
-    if (!r.success())
+    if (auto r = ensureAttached(pu); !r.success())
         return r;
 
     // Check if file exists
@@ -991,8 +972,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
     int ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("put stat failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         ret = afp_sl_stat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &st);
     }
@@ -1009,8 +989,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
         qCDebug(logAfp) << "kio-afp: put creat ret=" << ret;
         if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
             invalidateSessionState("put creat failed");
-            auto rr = ensureAttached(pu);
-            if (!rr.success())
+            if (auto rr = ensureAttached(pu); !rr.success())
                 return rr;
             ret = afp_sl_creat(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, mode);
             qCDebug(logAfp) << "kio-afp: put creat retry ret=" << ret;
@@ -1025,8 +1004,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
         qCDebug(logAfp) << "kio-afp: put truncate ret=" << ret;
         if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
             invalidateSessionState("put truncate failed");
-            auto rr = ensureAttached(pu);
-            if (!rr.success())
+            if (auto rr = ensureAttached(pu); !rr.success())
                 return rr;
             ret = afp_sl_truncate(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, 0);
             qCDebug(logAfp) << "kio-afp: put truncate retry ret=" << ret;
@@ -1041,8 +1019,7 @@ KIO::WorkerResult AfpWorker::put(const QUrl &url, int permissions, KIO::JobFlags
     qCDebug(logAfp) << "kio-afp: put open ret=" << ret << "fileId=" << fileId;
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("put open failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         ret = afp_sl_open(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, &fileId, O_RDWR);
         qCDebug(logAfp) << "kio-afp: put open retry ret=" << ret << "fileId=" << fileId;
@@ -1103,16 +1080,14 @@ KIO::WorkerResult AfpWorker::mkdir(const QUrl &url, int permissions)
         return KIO::WorkerResult::fail(KIO::ERR_ACCESS_DENIED,
                                        i18n("Cannot create directory at volume level"));
 
-    auto r = ensureAttached(pu);
-    if (!r.success())
+    if (auto r = ensureAttached(pu); !r.success())
         return r;
 
     mode_t mode = (permissions == -1) ? 0755 : static_cast<mode_t>(permissions);
     int ret = afp_sl_mkdir(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, mode);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("mkdir failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         ret = afp_sl_mkdir(&m_volumeId, pu.afpUrl.path, &pu.afpUrl, mode);
     }
@@ -1131,8 +1106,7 @@ KIO::WorkerResult AfpWorker::del(const QUrl &url, bool isFile)
         return KIO::WorkerResult::fail(KIO::ERR_ACCESS_DENIED,
                                        i18n("Cannot delete volume root"));
 
-    auto r = ensureAttached(pu);
-    if (!r.success())
+    if (auto r = ensureAttached(pu); !r.success())
         return r;
 
     int ret;
@@ -1142,8 +1116,7 @@ KIO::WorkerResult AfpWorker::del(const QUrl &url, bool isFile)
         ret = afp_sl_rmdir(&m_volumeId, pu.afpUrl.path, &pu.afpUrl);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("delete failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         if (isFile)
             ret = afp_sl_unlink(&m_volumeId, pu.afpUrl.path, &pu.afpUrl);
@@ -1172,15 +1145,14 @@ KIO::WorkerResult AfpWorker::rename(const QUrl &src, const QUrl &dest, KIO::JobF
         return KIO::WorkerResult::fail(KIO::ERR_UNSUPPORTED_ACTION,
                                        i18n("Cannot rename across different volumes"));
 
-    auto r = ensureAttached(puSrc);
-    if (!r.success())
+    if (auto r = ensureAttached(puSrc); !r.success())
         return r;
 
     // Check if destination exists when Overwrite is not set
     if (!(flags & KIO::Overwrite)) {
         struct stat st {};
-        int check = afp_sl_stat(&m_volumeId, puDest.afpUrl.path, &puDest.afpUrl, &st);
-        if (check == AFP_SERVER_RESULT_OKAY)
+        if (int check = afp_sl_stat(&m_volumeId, puDest.afpUrl.path, &puDest.afpUrl, &st);
+            check == AFP_SERVER_RESULT_OKAY)
             return KIO::WorkerResult::fail(KIO::ERR_FILE_ALREADY_EXIST, puDest.path);
     }
 
@@ -1188,8 +1160,7 @@ KIO::WorkerResult AfpWorker::rename(const QUrl &src, const QUrl &dest, KIO::JobF
                             &puSrc.afpUrl);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("rename failed");
-        auto rr = ensureAttached(puSrc);
-        if (!rr.success())
+        if (auto rr = ensureAttached(puSrc); !rr.success())
             return rr;
         ret = afp_sl_rename(&m_volumeId, puSrc.afpUrl.path, puDest.afpUrl.path,
                             &puSrc.afpUrl);
@@ -1209,16 +1180,14 @@ KIO::WorkerResult AfpWorker::chmod(const QUrl &url, int permissions)
         return KIO::WorkerResult::fail(KIO::ERR_UNSUPPORTED_ACTION,
                                        i18n("Cannot chmod volume root"));
 
-    auto r = ensureAttached(pu);
-    if (!r.success())
+    if (auto r = ensureAttached(pu); !r.success())
         return r;
 
     int ret = afp_sl_chmod(&m_volumeId, pu.afpUrl.path, &pu.afpUrl,
                            static_cast<mode_t>(permissions));
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("chmod failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         ret = afp_sl_chmod(&m_volumeId, pu.afpUrl.path, &pu.afpUrl,
                            static_cast<mode_t>(permissions));
@@ -1234,16 +1203,14 @@ KIO::WorkerResult AfpWorker::fileSystemFreeSpace(const QUrl &url)
     qCDebug(logAfp) << "kio-afp: fileSystemFreeSpace()" << url;
 
     ParsedUrl pu = parseAfpUrl(url);
-    auto r = ensureAttached(pu);
-    if (!r.success())
+    if (auto r = ensureAttached(pu); !r.success())
         return r;
 
     struct statvfs svfs {};
     int ret = afp_sl_statfs(&m_volumeId, "/", &pu.afpUrl, &svfs);
     if (ret != AFP_SERVER_RESULT_OKAY && isRecoverableSessionError(ret)) {
         invalidateSessionState("statfs failed");
-        auto rr = ensureAttached(pu);
-        if (!rr.success())
+        if (auto rr = ensureAttached(pu); !rr.success())
             return rr;
         ret = afp_sl_statfs(&m_volumeId, "/", &pu.afpUrl, &svfs);
     }
