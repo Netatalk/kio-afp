@@ -41,8 +41,10 @@ but using KDE Wallet is recommended for security.
 
 ## Development Notes
 
-- **Entry point**: `kdemain()` function in [src/kafp_worker.cpp](src/kafp_worker.cpp) initializes the worker and enters dispatch loop.
-- **Worker class**: `AfpWorker` inherits from `KIO::WorkerBase` and implements core operations (`get()`, `stat()`, `listDir()`).
+### Code Style
+
+- The project uses a `.clang-format` file with WebKit style as the base, with some customizations.
+- Run `clang-format` on modified files before committing to ensure consistent code style.
 
 ### Internationalization (i18n)
 
