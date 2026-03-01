@@ -12,17 +12,36 @@ on:
       - synchronize
       - reopened
 
-permissions:
-  contents: read
-
 env:
   AFPFS_NG_VERSION: "0.9.4"
   BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory
 
 jobs:
+  clang-format:
+    name: Code Formatting Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install clang-format-20
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo gpg --dearmor -o /etc/apt/keyrings/llvm.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get install --assume-yes --no-install-recommends clang-format-20
+
+      - name: Check formatting
+        run: git ls-files '*.cpp' '*.h' | xargs clang-format-20 --dry-run --Werror
+
   static_analysis:
     name: SonarQube Static Analysis
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: >
       (github.event_name == 'push' && github.actor != 'dependabot[bot]' && github.actor != 'dependabot') || (github.event_name
       == 'pull_request' && !github.event.pull_request.head.repo.fork && github.actor != 'dependabot[bot]' && github.actor
