@@ -1,5 +1,7 @@
 # kio-afp
 
+**PROJECT UPDATE:** This repository has moved to [KDE Invent](https://invent.kde.org/dmark/kio-afp)
+
 KIO Worker for AFP (Apple Filing Protocol) using KDE Frameworks 6 and Qt 6,
 built on top of the [afpfs-ng](https://github.com/Netatalk/afpfs-ng) Stateless Client Library.
 
